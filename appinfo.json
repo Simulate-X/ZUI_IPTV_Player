@@ -1,0 +1,15 @@
+{
+  "id": "com.zui.player",
+  "version": "0.1.0",
+  "vendor": "ZUI",
+  "type": "web",
+  "main": "index.html",
+  "title": "ZUI IPTV Player",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "iconColor": "#3DDC97",
+  "resolution": "1920x1080",
+  "transparent": false,
+  "disableBackHistoryAPI": true,
+  "uiRevision": 2
+}

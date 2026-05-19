@@ -1,0 +1,53 @@
+import { useEffect } from 'react';
+import { useUIStore } from '@/state/uiStore';
+import { usePlaylistStore } from '@/state/playlistStore';
+
+export function RemoteRouter() {
+  const currentScreen = useUIStore((s) => s.currentScreen);
+  const modalOpen = useUIStore((s) => s.modalOpen);
+  const navigate = useUIStore((s) => s.navigate);
+  const openModal = useUIStore((s) => s.openModal);
+  const closeModal = useUIStore((s) => s.closeModal);
+  const zapChannel = usePlaylistStore((s) => s.zapChannel);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // BACK: webOS 461, browser ESC 27
+      if (e.keyCode === 461 || e.keyCode === 27) {
+        e.preventDefault();
+        if (modalOpen) {
+          closeModal();
+          return;
+        }
+        switch (currentScreen) {
+          case 'player':
+            navigate(useUIStore.getState().lastMainScreen);
+            break;
+          case 'channelList':
+          case 'epg':
+          case 'settings':
+          case 'onboarding':
+            openModal('exit');
+            break;
+          case 'loading':
+            break;
+        }
+        return;
+      }
+
+      // CH+ (33) / CH- (34)
+      if (e.keyCode === 33 || e.keyCode === 34) {
+        if (modalOpen) return;
+        if (currentScreen === 'player' || currentScreen === 'channelList') {
+          e.preventDefault();
+          void zapChannel(e.keyCode === 33 ? 'next' : 'prev');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [currentScreen, modalOpen, navigate, openModal, closeModal, zapChannel]);
+
+  return null;
+}
