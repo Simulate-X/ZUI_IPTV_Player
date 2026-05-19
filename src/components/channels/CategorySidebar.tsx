@@ -109,17 +109,39 @@ function SidebarItem({
         }
       }}
       className={[
-        'flex items-center justify-between px-4 py-3 rounded cursor-pointer transition-colors',
-        isActive ? 'bg-bg-elevated text-accent' : 'text-text-secondary',
-        focused ? 'outline outline-3 outline-accent outline-offset-2' : '',
+        // Aurora sidebar item — no bg card, hairline row with bullet dot
+        'group flex items-center gap-3 px-2 py-2.5 cursor-pointer transition-colors',
+        isActive
+          ? 'text-white relative'
+          : showLock
+            ? 'text-[#C9A063]/75 italic'
+            : 'text-white/55 hover:text-white/85',
+        focused ? 'text-white' : '',
       ].join(' ')}
     >
-      <span className="text-body truncate flex items-center gap-2">
-        {showLock && <i className="text-yellow-500 text-tiny not-italic">🔒</i>}
+      {/* Aurora bullet — amber if active, ghost if not */}
+      <span
+        className={[
+          'w-1.5 h-1.5 rounded-full shrink-0 transition-all',
+          isActive ? 'bg-accent shadow-amber-glow' : 'bg-white/15',
+        ].join(' ')}
+      />
+
+      <span className="flex-1 text-[15px] tracking-wide truncate flex items-center gap-2">
+        {showLock && <span className="not-italic">🔒</span>}
         {icon}
         {label}
       </span>
-      <span className="text-small text-text-tertiary ml-2 shrink-0">{count}</span>
+
+      {/* Serif count — Aurora signature */}
+      <span
+        className={[
+          'font-serif text-[15px] font-light tabular-nums shrink-0',
+          isActive ? 'text-accent' : 'text-white/35 group-hover:text-white/55',
+        ].join(' ')}
+      >
+        {count}
+      </span>
     </div>
   );
 }
@@ -205,7 +227,7 @@ export function CategorySidebar() {
     <FocusContext.Provider value={focusKey}>
       <div
         ref={containerRef as React.RefObject<HTMLDivElement>}
-        className="w-full h-full flex flex-col gap-1 p-4 bg-bg-surface border-r border-border-subtle overflow-y-auto"
+        className="w-full h-full flex flex-col gap-0.5 py-2 pr-2 overflow-y-auto"
       >
         <SidebarItem
           focusKey="sidebar-all"
@@ -259,7 +281,7 @@ export function CategorySidebar() {
         )}
 
         {categories.length > 0 && (
-          <div className="my-2 border-t border-border-subtle" />
+          <div className="my-4 mx-2 border-t border-border-subtle" />
         )}
 
         {categories.map((cat, i) => (
@@ -280,8 +302,8 @@ export function CategorySidebar() {
         {/* Source filter section — only show when multiple enabled sources */}
         {hasMultipleSources && (
           <>
-            <div className="my-2 border-t border-border-subtle" />
-            <div className="px-4 py-1 text-tiny text-text-tertiary uppercase tracking-wide">
+            <div className="my-4 mx-2 border-t border-border-subtle" />
+            <div className="px-2 pt-4 pb-3 text-[10px] font-semibold uppercase tracking-[0.35em] text-white/35">
               Kaynak
             </div>
             <SidebarItem

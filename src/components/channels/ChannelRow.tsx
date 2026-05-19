@@ -17,8 +17,7 @@ export function ChannelRow({ channel, onSelect, onFocus, onToggleFavorite }: Pro
   const isFavorite = usePlaylistStore(s => s.favoriteIds.includes(channel.id));
   const nowNext = useNowNext(channel.id);
   const { showImg, onError, onLoad } = useChannelLogo(channel.logoUrl);
-  
-  // Declare a ref to track if long press occurred
+
   const wasLongPressedRef = useRef(false);
 
   const { ref, focused } = useFocusableScroll({
@@ -33,51 +32,69 @@ export function ChannelRow({ channel, onSelect, onFocus, onToggleFavorite }: Pro
     onShortPress: onSelect,
     delayMs: 600,
     enabled: focused,
-    triggeredRef: wasLongPressedRef
+    triggeredRef: wasLongPressedRef,
   });
-  
+
   return (
     <div
       ref={ref as React.RefObject<HTMLDivElement>}
       onClick={onSelect}
-      className={`p-2 flex items-center gap-2.5 rounded-md transition-colors cursor-pointer ${
-        focused ? 'bg-accent/10 border border-accent' : 'border border-transparent'
-      }`}
+      className={[
+        // Aurora: editorial row with border-b, amber accent bar on focus
+        'group relative flex items-center gap-4 py-3.5 pl-4 pr-3',
+        'border-b border-border-subtle last:border-0',
+        'cursor-pointer transition-colors duration-150',
+        focused
+          ? 'bg-accent/[0.06] text-white scale-[1.005]'
+          : 'text-white/85 hover:text-white',
+      ].join(' ')}
     >
-      <div className="w-8 h-8 rounded flex-shrink-0 bg-bg-base flex items-center justify-center overflow-hidden">
+      {/* Left amber accent bar — only on focus */}
+      {focused && (
+        <span className="absolute left-0 top-2 bottom-2 w-[2px] bg-accent rounded-r shadow-accent-bar" />
+      )}
+
+      {/* Round logo avatar */}
+      <div className="w-9 h-9 rounded-full flex-shrink-0 bg-bg-elevated flex items-center justify-center overflow-hidden">
         {showImg && channel.logoUrl ? (
-          <img 
-            src={channel.logoUrl} 
-            alt="" 
-            className="w-full h-full object-contain" 
+          <img
+            src={channel.logoUrl}
+            alt=""
+            className="w-full h-full object-contain"
             onError={onError}
             onLoad={onLoad}
           />
         ) : (
-          <span className="text-accent text-tiny">
+          <span className={`text-[13px] font-medium ${focused ? 'text-accent' : 'text-white/60'}`}>
             {channel.name.charAt(0)}
           </span>
         )}
       </div>
-      
-      <div className="flex-1 min-w-0 pr-2">
-        <div className="text-text-primary text-small flex items-center gap-1.5">
-          <span className="truncate">{channel.name}</span>
+
+      {/* Channel info */}
+      <div className="flex-1 min-w-0">
+        <div className="text-[17px] font-medium tracking-tight truncate">
+          {channel.name}
         </div>
         {nowNext?.current && (
-          <div className="text-text-tertiary text-tiny truncate mt-0.5">
-            Şimdi · {nowNext.current.title}
+          // Serif italic "now playing" — Aurora signature
+          <div className="font-serif italic text-[13px] text-white/50 truncate mt-0.5">
+            {nowNext.current.title}
           </div>
         )}
       </div>
-      
-      <div className="flex items-center shrink-0 pl-1">
+
+      {/* Favorite star — amber when active */}
+      <div className="shrink-0">
         {isFavorite ? (
-          <svg className="w-4 h-4 text-yellow-500 fill-current" viewBox="0 0 24 24">
+          <svg className="w-3.5 h-3.5 text-accent fill-current" viewBox="0 0 24 24">
             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
           </svg>
         ) : (
-          <svg className={`w-4 h-4 text-text-tertiary fill-none stroke-current stroke-2 transition-opacity ${focused ? 'opacity-100' : 'opacity-0'}`} viewBox="0 0 24 24">
+          <svg
+            className={`w-3.5 h-3.5 fill-none stroke-current stroke-2 transition-opacity ${focused ? 'opacity-100 text-white/30' : 'opacity-0'}`}
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
           </svg>
         )}

@@ -120,10 +120,15 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="relative flex flex-col h-screen overflow-hidden bg-bg-base text-white antialiased font-sans">
+      {/* Aurora ambient washes — static, no animation cost */}
+      <div className="pointer-events-none absolute -top-40 -right-40 w-[1100px] h-[1100px] rounded-full bg-[radial-gradient(circle,rgba(232,181,103,0.18),transparent_60%)] blur-3xl z-0" />
+      <div className="pointer-events-none absolute -bottom-60 -left-40 w-[900px] h-[900px] rounded-full bg-[radial-gradient(circle,rgba(174,118,233,0.12),transparent_60%)] blur-3xl z-0" />
+      {/* Subtle grain texture */}
+      <div className="pointer-events-none absolute inset-0 opacity-[0.025] mix-blend-overlay [background-image:radial-gradient(rgba(255,255,255,0.6)_1px,transparent_1px)] [background-size:3px_3px] z-0" />
       <RemoteRouter />
       <TopBar />
-      <main className="flex-1 overflow-hidden">{renderScreen()}</main>
+      <main className="relative flex-1 overflow-hidden z-10">{renderScreen()}</main>
       {modalOpen === 'exit' && (
         <ConfirmModal
           title="Uygulamadan çık"

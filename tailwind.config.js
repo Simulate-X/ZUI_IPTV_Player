@@ -5,40 +5,50 @@ export default {
     extend: {
       colors: {
         bg: {
-          base: '#0e0e12',
-          surface: '#16161c',
-          elevated: '#1c1c24',
-          hover: '#22222c',
+          base:     '#0e0b0a',   // Aurora shell — warm near-black
+          surface:  '#161210',   // TopBar, panels on other screens
+          elevated: '#1e1812',   // Cards, Settings rows
+          hover:    '#252018',   // Hover state
         },
         text: {
-          primary: '#ffffff',
+          primary:   '#ffffff',
           secondary: '#aaaaaa',
-          tertiary: '#666666',
-          muted: '#444444',
+          tertiary:  '#666666',
+          muted:     '#444444',
         },
+        // Aurora amber accent
         accent: {
-          DEFAULT: '#3DDC97',
-          dark: '#2BA876',
-          text: '#032618',
+          DEFAULT: '#E8B567',
+          dark:    '#C9A063',
+          text:    '#1a1008',    // text on accent bg
         },
-        live: '#E24B4A',
+        live:    '#E24B4A',
         warning: '#F4A261',
         border: {
-          subtle: 'rgba(255,255,255,0.06)',
-          DEFAULT: 'rgba(255,255,255,0.12)',
-          focus: '#3DDC97',
+          subtle:  'rgba(255,255,255,0.05)',
+          DEFAULT: 'rgba(255,255,255,0.10)',
+          focus:   '#E8B567',
         },
       },
       fontSize: {
-        display: ['48px', { lineHeight: '56px', fontWeight: '500' }],
-        h1: ['32px', { lineHeight: '40px', fontWeight: '500' }],
-        h2: ['24px', { lineHeight: '32px', fontWeight: '500' }],
-        body: ['20px', { lineHeight: '28px', fontWeight: '400' }],
-        small: ['16px', { lineHeight: '22px', fontWeight: '400' }],
-        tiny: ['14px', { lineHeight: '18px', fontWeight: '400' }],
+        display: ['48px', { lineHeight: '56px', fontWeight: '300' }],
+        h1:      ['32px', { lineHeight: '40px', fontWeight: '300' }],
+        h2:      ['24px', { lineHeight: '32px', fontWeight: '400' }],
+        body:    ['20px', { lineHeight: '28px', fontWeight: '400' }],
+        small:   ['16px', { lineHeight: '22px', fontWeight: '400' }],
+        tiny:    ['14px', { lineHeight: '18px', fontWeight: '400' }],
       },
       fontFamily: {
-        sans: ['system-ui', '-apple-system', '"Segoe UI"', 'sans-serif'],
+        sans:  ['"Outfit"', 'system-ui', '-apple-system', '"Segoe UI"', 'sans-serif'],
+        serif: ['"Newsreader"', '"Cormorant Garamond"', 'Georgia', 'serif'],
+      },
+      boxShadow: {
+        // Aurora preview pane amber glow
+        'aurora-preview': '0 30px 80px -30px rgba(232,181,103,0.25)',
+        // Amber dot glow
+        'amber-glow':  '0 0 8px #E8B567',
+        // Left accent bar glow
+        'accent-bar':  '0 0 12px #E8B567',
       },
     },
   },

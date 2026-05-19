@@ -9,13 +9,28 @@ interface Props {
 
 export function ChannelListPro({ onSelectChannel, onFocusChannel, onToggleFavorite }: Props) {
   const channels = usePlaylistStore(s => s.visibleChannels);
-  
+  const activeCategory = usePlaylistStore(s => s.activeCategory);
+
+  // Human-readable category label for header
+  const categoryLabel = activeCategory === '__favorites__'
+    ? 'Favoriler'
+    : activeCategory === '__recent__'
+      ? 'Son İzlenen'
+      : activeCategory ?? 'Tümü';
+
   return (
-    <div className="w-full h-full bg-bg-elevated rounded-lg p-2.5 flex flex-col gap-px overflow-y-auto">
-      <div className="px-2 py-2 text-text-tertiary text-tiny tracking-wider">
-        {channels.length} KANAL
+    // Aurora: no panel chrome — editorial column with border-b rows
+    <div className="w-full h-full relative overflow-y-auto pr-1">
+      {/* Editorial header with serif italic title */}
+      <div className="flex items-baseline justify-between py-3 mb-2 border-b border-border-subtle">
+        <span className="font-serif italic text-[22px] font-light text-white">
+          {categoryLabel}
+        </span>
+        <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+          {channels.length} Kanal
+        </span>
       </div>
-      
+
       {channels.map((channel) => (
         <ChannelRow
           key={channel.id}

@@ -104,7 +104,7 @@ export function ChannelList() {
     <FocusContext.Provider value={focusKey}>
       <div
         ref={ref as React.RefObject<HTMLDivElement>}
-        className="w-full h-full grid grid-cols-[22%_26%_1fr] gap-2 bg-bg-base p-4 overflow-hidden"
+        className="w-full h-full grid grid-cols-[22%_26%_1fr] gap-6 px-12 py-6 overflow-hidden"
       >
         <CategorySidebar />
         <ChannelListPro 
