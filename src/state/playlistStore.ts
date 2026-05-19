@@ -278,17 +278,63 @@ export const usePlaylistStore = create<PlaylistStore>()(
           set({ lastFocusedChannelId: null });
         }
 
-        const { activeCategory, activeSourceFilter, favoriteIds, recentIds } = get();
-        const derived = recompute(
+        // Load favorites from IDB (v5 migration support)
+        try {
+          const { getDB } = await import('@/services/db');
+          const db = await getDB();
+          const favRecord = await db.get('favorites', 'main');
+          if (favRecord) {
+            set({ favoriteIds: favRecord.ids });
+          }
+        } catch (err) {
+          console.error('[playlistStore] Failed to load favorites from IDB', err);
+        }
+
+        let loadedCategory: string | null = null;
+        try {
+          const { getDB } = await import('@/services/db');
+          const db = await getDB();
+          const uiRecord = await db.get('uiState', 'activeCategory');
+          if (uiRecord?.value) {
+            loadedCategory = uiRecord.value;
+          }
+        } catch (err) {
+          console.error('[playlistStore] Failed to load uiState from IDB', err);
+        }
+
+        const { activeSourceFilter, favoriteIds, recentIds } = get();
+        
+        // Initial recompute to get categories
+        let derived = recompute(
           channelsBySource,
-          activeCategory,
+          loadedCategory,
           activeSourceFilter,
           favoriteIds,
           recentIds,
           categoriesBySource
         );
 
-        set({ channelsBySource, categoriesBySource, ...derived });
+        // Smart default if no loaded category
+        if (!loadedCategory) {
+          if (favoriteIds.length > 0) {
+            loadedCategory = '__favorites__';
+          } else {
+            const firstReal = derived.categories.find(c => c.name !== 'Tümü' && c.name !== 'Son İzlenen');
+            loadedCategory = firstReal ? firstReal.name : 'Tümü';
+          }
+          
+          // Recompute with the smart default
+          derived = recompute(
+            channelsBySource,
+            loadedCategory,
+            activeSourceFilter,
+            favoriteIds,
+            recentIds,
+            categoriesBySource
+          );
+        }
+
+        set({ channelsBySource, categoriesBySource, activeCategory: loadedCategory, ...derived });
       },
 
       setChannelsForSource: (sourceId, channels) => {
@@ -340,6 +386,11 @@ export const usePlaylistStore = create<PlaylistStore>()(
           categoriesBySource
         );
         set({ activeCategory: category, ...derived });
+        if (category) {
+          import('@/services/db').then(({ getDB }) => {
+            getDB().then(db => db.put('uiState', { id: 'activeCategory', value: category })).catch(console.error);
+          });
+        }
       },
 
       setActiveSourceFilter: (sourceId) => {
@@ -405,6 +456,10 @@ export const usePlaylistStore = create<PlaylistStore>()(
           categoriesBySource
         );
         set({ favoriteIds: updated, ...derived });
+        // Persist to IDB
+        import('@/services/db').then(({ getDB }) => {
+          getDB().then(db => db.put('favorites', { id: 'main', ids: updated })).catch(console.error);
+        });
       },
 
       addToRecent: (id) => {

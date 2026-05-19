@@ -16,6 +16,8 @@ type ItemProps = {
   nextKey: string | null;
   onFocusFilter: () => void;
   onSelect: () => void;
+  onFocusRight: () => void;
+  icon?: React.ReactNode;
 };
 
 function SidebarItem({
@@ -27,6 +29,8 @@ function SidebarItem({
   nextKey,
   onFocusFilter,
   onSelect,
+  onFocusRight,
+  icon,
 }: ItemProps) {
   // Ref-based stale-closure guard for setFocus — same pattern as ChannelCard.
   const setFocusRef = useRef<((key: string) => void) | null>(null);
@@ -69,8 +73,8 @@ function SidebarItem({
 
       if (direction === 'right') {
         // isFocusBoundary spatial nav'ın grid'e geçmesini engeller;
-        // bu explicit route ise Enter-benzeri "RIGHT = gird" UX sağlar.
-        setFocusRef.current?.('CHANNEL_GRID');
+        // bu explicit route ise Enter-benzeri "RIGHT = liste" UX sağlar.
+        onFocusRight();
         return false;
       }
 
@@ -93,7 +97,10 @@ function SidebarItem({
         focused ? 'outline outline-3 outline-accent outline-offset-2' : '',
       ].join(' ')}
     >
-      <span className="text-body truncate">{label}</span>
+      <span className="text-body truncate flex items-center gap-2">
+        {icon}
+        {label}
+      </span>
       <span className="text-small text-text-tertiary ml-2 shrink-0">{count}</span>
     </div>
   );
@@ -129,15 +136,25 @@ export function CategorySidebar() {
     setActiveSourceFilter(sourceId);
   }, 200);
 
+  const focusChannelList = () => {
+    const s = usePlaylistStore.getState();
+    const lastFocused = s.lastFocusedChannelId;
+    if (lastFocused && s.visibleChannels.some(c => c.id === lastFocused)) {
+      setFocus(`channel-${lastFocused}`);
+    } else if (s.visibleChannels.length > 0) {
+      setFocus(`channel-${s.visibleChannels[0].id}`);
+    }
+  };
+
   // Enter-press: immediate filter + move focus to grid
   const handleCategorySelect = (category: string | null) => {
     setActiveCategory(category);
-    setFocus('CHANNEL_GRID');
+    setTimeout(focusChannelList, 50); // wait for state/render
   };
 
   const handleSourceSelect = (sourceId: string | 'all') => {
     setActiveSourceFilter(sourceId);
-    setFocus('CHANNEL_GRID');
+    setTimeout(focusChannelList, 50);
   };
 
   // ─── Build ordered focus-key list ─────────────────────────────────────────
@@ -170,7 +187,7 @@ export function CategorySidebar() {
     <FocusContext.Provider value={focusKey}>
       <div
         ref={containerRef as React.RefObject<HTMLDivElement>}
-        className="w-60 shrink-0 h-full flex flex-col gap-1 p-6 bg-bg-surface border-r border-border-subtle overflow-y-auto"
+        className="w-full h-full flex flex-col gap-1 p-4 bg-bg-surface border-r border-border-subtle overflow-y-auto"
       >
         <SidebarItem
           focusKey="sidebar-all"
@@ -187,6 +204,7 @@ export function CategorySidebar() {
             setActiveSourceFilter('all');
             handleCategorySelect(null);
           }}
+          onFocusRight={focusChannelList}
         />
 
         {favoriteIds.length > 0 && (
@@ -194,11 +212,17 @@ export function CategorySidebar() {
             focusKey="sidebar-favorites"
             label="Favoriler"
             count={favoriteIds.length}
+            icon={
+              <svg className="w-4 h-4 text-yellow-500 fill-current" viewBox="0 0 24 24">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+            }
             isActive={activeCategory === '__favorites__'}
             prevKey={prev('sidebar-favorites')}
             nextKey={next('sidebar-favorites')}
             onFocusFilter={() => debouncedFilter('__favorites__')}
             onSelect={() => handleCategorySelect('__favorites__')}
+            onFocusRight={focusChannelList}
           />
         )}
 
@@ -212,6 +236,7 @@ export function CategorySidebar() {
             nextKey={next('sidebar-recent')}
             onFocusFilter={() => debouncedFilter('__recent__')}
             onSelect={() => handleCategorySelect('__recent__')}
+            onFocusRight={focusChannelList}
           />
         )}
 
@@ -230,6 +255,7 @@ export function CategorySidebar() {
             nextKey={next(`sidebar-cat-${i + 1}`)}
             onFocusFilter={() => debouncedFilter(cat.name)}
             onSelect={() => handleCategorySelect(cat.name)}
+            onFocusRight={focusChannelList}
           />
         ))}
 
@@ -249,6 +275,7 @@ export function CategorySidebar() {
               nextKey={next('sidebar-source-all')}
               onFocusFilter={() => debouncedSourceFilter('all')}
               onSelect={() => handleSourceSelect('all')}
+              onFocusRight={focusChannelList}
             />
             {sources.map((src) => (
               <SidebarItem
@@ -261,6 +288,7 @@ export function CategorySidebar() {
                 nextKey={next(`sidebar-source-${src.id}`)}
                 onFocusFilter={() => debouncedSourceFilter(src.id)}
                 onSelect={() => handleSourceSelect(src.id)}
+                onFocusRight={focusChannelList}
               />
             ))}
           </>

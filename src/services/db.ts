@@ -4,7 +4,7 @@ import type { Source } from '@/types/source';
 import type { EPGChannel, EPGProgram } from '@/types/epg';
 
 const DB_NAME = 'zui-iptv-player';
-const DB_VERSION = 4;
+const DB_VERSION = 6;
 
 type EPGMeta = { url: string; syncedAt: number };
 
@@ -36,6 +36,14 @@ export type ZuiDB = {
     key: string;
     value: EPGMeta;
   };
+  favorites: {
+    key: string;
+    value: { id: 'main'; ids: string[] };
+  };
+  uiState: {
+    key: string;
+    value: { id: string; value: string };
+  };
 };
 
 let _db: IDBPDatabase<ZuiDB> | null = null;
@@ -44,7 +52,7 @@ export async function getDB(): Promise<IDBPDatabase<ZuiDB>> {
   if (_db) return _db;
   _db = await openDB<ZuiDB>(DB_NAME, DB_VERSION, {
     upgrade(db, oldVersion) {
-      // v0 → v1: channels, sources-meta
+      // v0 -> v1: channels, sources-meta
       if (oldVersion < 1) {
         if (!db.objectStoreNames.contains('channels')) {
           const store = db.createObjectStore('channels', { keyPath: 'id' });
@@ -57,7 +65,7 @@ export async function getDB(): Promise<IDBPDatabase<ZuiDB>> {
         }
       }
 
-      // v1 → v2: epg-channels, epg-programs, epg-meta
+      // v1 -> v2: epg-channels, epg-programs, epg-meta
       if (oldVersion < 2) {
         if (!db.objectStoreNames.contains('epg-channels')) {
           db.createObjectStore('epg-channels', { keyPath: 'id' });
@@ -72,22 +80,38 @@ export async function getDB(): Promise<IDBPDatabase<ZuiDB>> {
         }
       }
 
-      // v2 → v3: sources store (new)
+      // v2 -> v3: sources store (new)
       if (oldVersion < 3) {
         if (!db.objectStoreNames.contains('sources')) {
           db.createObjectStore('sources', { keyPath: 'id' });
         }
-        // Note: channels index was 'by-category' → 'groupTitle' in v2, now 'group'
+        // Note: channels index was 'by-category' -> 'groupTitle' in v2, now 'group'
         // The index name stays 'by-category' but the keyPath changes. We recreate it.
         // We can't modify indexes in-place, but the data will be re-written during
         // the post-upgrade migration (runV2V3Migration), so this is fine.
       }
 
-      // v3 → v4: D-035 — XtreamSource extended with bouquets + categoryPrefixFilter.
+      // v3 -> v4: D-035 - XtreamSource extended with bouquets + categoryPrefixFilter.
       // No schema changes needed (optional fields on existing Source records).
-      // Existing sources silently gain undefined for both fields — no filter applied.
+      // Existing sources silently gain undefined for both fields - no filter applied.
       if (oldVersion < 4) {
         console.log('[DB] v4 migration: Xtream source filter fields added (no data change required)');
+      }
+
+      // v4 -> v5
+      if (oldVersion < 5) {
+        if (!db.objectStoreNames.contains('favorites')) {
+          db.createObjectStore('favorites', { keyPath: 'id' });
+        }
+        console.log('[DB] v5 migration: favorites store added');
+      }
+
+      // v5 -> v6
+      if (oldVersion < 6) {
+        if (!db.objectStoreNames.contains('uiState')) {
+          db.createObjectStore('uiState', { keyPath: 'id' });
+        }
+        console.log('[DB] v6 migration: uiState store added');
       }
     },
   });

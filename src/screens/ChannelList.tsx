@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FocusContext, useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 import { CategorySidebar } from '@/components/channels/CategorySidebar';
-import { ChannelGrid } from '@/components/channels/ChannelGrid';
+import { ChannelListPro } from '@/components/channels/ChannelListPro';
+import { PreviewPane } from '@/components/channels/PreviewPane';
 import { usePlaylistStore } from '@/state/playlistStore';
 import { useUIStore } from '@/state/uiStore';
 import { usePlayerStore } from '@/state/playerStore';
@@ -9,10 +10,13 @@ import { useEpgStore } from '@/state/epgStore';
 import { channelCache } from '@/services/channelCache';
 
 export function ChannelList() {
+  const [focusedChannelId, setFocusedChannelId] = useState<string | null>(null);
+
   const selectChannel = usePlaylistStore((s) => s.selectChannel);
   const addToRecent = usePlaylistStore((s) => s.addToRecent);
   const lastFocusedChannelId = usePlaylistStore((s) => s.lastFocusedChannelId);
   const visibleChannels = usePlaylistStore((s) => s.visibleChannels);
+  const toggleFavorite = usePlaylistStore((s) => s.toggleFavorite);
   const navigate = useUIStore((s) => s.navigate);
   const setSource = usePlayerStore((s) => s.setSource);
   const refreshNowNext = useEpgStore((s) => s.refreshNowNext);
@@ -23,51 +27,40 @@ export function ChannelList() {
   const channelsLength = visibleChannels.length;
   const firstChannelId = visibleChannels[0]?.id ?? null;
 
-  // İŞTE BÜYÜK KURTARICI: Bu işlem sadece 1 kere çalışsın diye kilit koyuyoruz!
   const initialFocusDone = useRef(false);
 
   useEffect(() => {
-    // Eğer kilit kapalıysa (yani ilk odak zaten verildiyse) buradan sonrasını ÇALIŞTIRMA!
     if (initialFocusDone.current) return;
 
     const timeoutId = setTimeout(() => {
       const candidates: string[] = [];
 
-// 1. ÖNCELİK: Player'dan geri dönerken son izlenen kanal (D-021 pattern)
-if (
-  lastFocusedChannelId?.includes(':') &&
-  visibleChannels.some((c) => c.id === lastFocusedChannelId)
-) {
-  candidates.push(`channel-${lastFocusedChannelId}`);
-}
+      if (
+        lastFocusedChannelId?.includes(':') &&
+        visibleChannels.some((c) => c.id === lastFocusedChannelId)
+      ) {
+        candidates.push(`channel-${lastFocusedChannelId}`);
+      }
 
-// 2. ÖNCELİK: Görünen ilk kanal (default başlangıç)
-if (firstChannelId) candidates.push(`channel-${firstChannelId}`);
-
-// 3. ÖNCELİK: Sidebar (kanal yoksa son çare)
-candidates.push('sidebar-all');
+      if (firstChannelId) candidates.push(`channel-${firstChannelId}`);
+      candidates.push('sidebar-all');
 
       const chosen = candidates[0];
-
       setFocus(chosen);
 
-      // İŞLEM BİTTİ, KİLİDİ KAPAT! Kategoriler değişse de bu kod bir daha asla çalışmayacak.
       initialFocusDone.current = true;
       
     }, 150);
 
     return () => clearTimeout(timeoutId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelsLength, firstChannelId, lastFocusedChannelId]);
+  }, [channelsLength, firstChannelId, lastFocusedChannelId, visibleChannels]);
 
-  // Refresh NowNext when visible channels change
   useEffect(() => {
     if (isEpgLoaded && visibleChannels.length > 0) {
       void refreshNowNext(visibleChannels.map((c) => c.id));
     }
-  }, [visibleChannels, isEpgLoaded]);
+  }, [visibleChannels, isEpgLoaded, refreshNowNext]);
 
-  // 1-minute global refresh
   useEffect(() => {
     if (!isEpgLoaded) return;
     const id = setInterval(() => {
@@ -77,7 +70,12 @@ candidates.push('sidebar-all');
       }
     }, 60_000);
     return () => clearInterval(id);
-  }, [isEpgLoaded]);
+  }, [isEpgLoaded, refreshNowNext]);
+
+  const handleChannelFocus = (id: string) => {
+    setFocusedChannelId(id);
+    usePlaylistStore.getState().setLastFocusedChannel(id);
+  };
 
   const handleSelectChannel = async (id: string) => {
     selectChannel(id);
@@ -94,16 +92,23 @@ candidates.push('sidebar-all');
     navigate('player');
   };
 
+  const handleToggleFavorite = (id: string) => {
+    toggleFavorite(id);
+  };
+
   return (
     <FocusContext.Provider value={focusKey}>
       <div
         ref={ref as React.RefObject<HTMLDivElement>}
-        className="w-full h-full flex bg-bg-base overflow-hidden"
+        className="w-full h-full grid grid-cols-[22%_26%_1fr] gap-2 bg-bg-base p-4 overflow-hidden"
       >
         <CategorySidebar />
-        <div className="flex-1 overflow-hidden">
-          <ChannelGrid onSelect={(id) => void handleSelectChannel(id)} />
-        </div>
+        <ChannelListPro 
+          onSelectChannel={(id) => void handleSelectChannel(id)}
+          onFocusChannel={handleChannelFocus}
+          onToggleFavorite={handleToggleFavorite}
+        />
+        <PreviewPane focusedChannelId={focusedChannelId} />
       </div>
     </FocusContext.Provider>
   );

@@ -56,9 +56,11 @@ function formatClock(ts: number): string {
 
 const TOPBAR_SCREENS: Screen[] = ['channelList', 'epg', 'settings'];
 
+// v1: Kanallar / Rehber / Ayarlar
+// v2: Kanallar / Kütüphane / Rehber / Ayarlar — Kütüphane = VOD destination (Movies + Series alt-sayfa)
 const TABS: { id: TabId; label: string }[] = [
   { id: 'channelList', label: 'Kanallar' },
-  { id: 'epg', label: 'EPG' },
+  { id: 'epg', label: 'Rehber' },
   { id: 'settings', label: 'Ayarlar' },
 ];
 
@@ -77,10 +79,7 @@ export function TopBar() {
         className="h-16 px-12 bg-bg-surface flex items-center gap-8 border-b border-border-subtle shrink-0"
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-md bg-accent flex items-center justify-center font-medium text-small text-white">
-            Z
-          </div>
-          <span className="text-body font-medium text-text-primary">ZUI IPTV Player</span>
+          <img src="./zui_logo.png" alt="" className="h-10 object-contain" />
         </div>
         <nav className="flex gap-2 ml-8">
           {TABS.map((t) => (

@@ -5,6 +5,20 @@ import type {
   XtreamStream,
 } from '@/types/xtream';
 import type { Channel } from '@/types/channel';
+import type { EPGProgram } from '@/types/epg';
+
+export interface XtreamEpgEntry {
+  id: string;
+  epg_id: string;
+  title: string;          // base64 encoded
+  lang: string;
+  start: string;          // "YYYY-MM-DD HH:MM:SS" local
+  end: string;
+  description: string;    // base64 encoded
+  channel_id: string;
+  start_timestamp: string; // unix epoch seconds
+  stop_timestamp: string;
+}
 
 function buildApiUrl(
   creds: XtreamCredentials,
@@ -243,4 +257,71 @@ export async function syncXtreamSource(
   );
 
   return { channels, bouquets: userBouquets, categoryNames };
+}
+
+function formatTime(ts: number): string {
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+export async function fetchShortEpg(
+  creds: XtreamCredentials,
+  streamId: number,
+  limit = 4
+): Promise<EPGProgram[]> {
+  const url = buildApiUrl(creds, 'get_short_epg', {
+    stream_id: streamId.toString(),
+    limit: limit.toString(),
+  });
+  
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.warn(`[xtream-epg] HTTP ${response.status} for stream ${streamId}`);
+      return [];
+    }
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = await response.json() as any;
+    
+    // Provider response shape: { epg_listings: [...] }
+    const entries: XtreamEpgEntry[] = data.epg_listings || [];
+    
+    if (entries.length === 0) {
+      console.log(`[xtream-epg] no entries for stream ${streamId}`);
+      return [];
+    }
+    
+    // Decode base64 ve normalize
+    const programs: EPGProgram[] = entries.map(entry => {
+      const startMs = parseInt(entry.start_timestamp, 10) * 1000;
+      const stopMs = parseInt(entry.stop_timestamp, 10) * 1000;
+      return {
+        id: entry.id || `${streamId}-${entry.start_timestamp}`,
+        channelId: `xtream:${streamId}`, // Not strictly needed for UI, but required by type
+        title: safeBase64Decode(entry.title),
+        description: safeBase64Decode(entry.description),
+        start: startMs,  // ms
+        stop: stopMs,
+        startFormatted: formatTime(startMs),
+        stopFormatted: formatTime(stopMs),
+      };
+    }).filter(p => p.start && p.stop);  // invalid timestamp'leri at
+    
+    console.log(`[xtream-epg] fetched ${programs.length} programs for stream ${streamId}`);
+    return programs;
+  } catch (err) {
+    console.warn(`[xtream-epg] fetch failed for stream ${streamId}:`, err);
+    return [];
+  }
+}
+
+function safeBase64Decode(encoded: string): string {
+  if (!encoded) return '';
+  try {
+    return decodeURIComponent(escape(atob(encoded)));  // UTF-8 safe
+  } catch {
+    // Eğer base64 değilse (bazı provider'lar plain dönebilir), olduğu gibi dön
+    return encoded;
+  }
 }
