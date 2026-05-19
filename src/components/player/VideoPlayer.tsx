@@ -5,6 +5,7 @@ import { useUIStore } from '@/state/uiStore';
 import { usePlayer } from '@/hooks/usePlayer';
 import { useRemote } from '@/hooks/useRemote';
 import { useAudioWatchdog } from '@/hooks/useAudioWatchdog';
+import { useStreamWatchdog } from '@/hooks/useStreamWatchdog';
 import { OSD } from './OSD';
 import { ErrorOverlay } from './ErrorOverlay';
 import { Spinner } from '@/components/common/Spinner';
@@ -47,9 +48,32 @@ export function VideoPlayer() {
     [],
   );
 
+  // Watchdog escalation: when all 3 retries fail, restart the full fallback chain.
+  // Spread creates a new object → usePlayer effect dependency changes → re-run
+  const handleWatchdogEscalation = useCallback(() => {
+    if (currentSource) {
+      console.warn('[player] watchdog escalated, restarting full fallback chain');
+      setSource({ ...currentSource });
+    }
+  }, [currentSource, setSource]);
+
+  const handleWatchdogRetry = useCallback(() => {
+    if (currentSource) {
+      console.log('[player] watchdog triggering stream re-init');
+      setSource({ ...currentSource });
+    }
+  }, [currentSource, setSource]);
+
   usePlayer(videoRef, onFatalError);
   useRemote(videoRef);
   useAudioWatchdog(videoRef);
+  useStreamWatchdog({
+    videoRef,
+    url: currentSource?.url ?? '',
+    onAllRetriesFailed: handleWatchdogEscalation,
+    onRetry: handleWatchdogRetry,
+    enabled: false,
+  });
 
   // ─── Post-attach non-recoverable error → persistent error overlay ───────────
   // strategy.onError() fires mid-stream (after successful attach). Fatal

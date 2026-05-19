@@ -18,7 +18,10 @@ export class HLSStrategy implements PlayerStrategy {
         return true;
       }
     }
-    return url.toLowerCase().includes('.m3u8');
+    const lowerUrl = url.toLowerCase();
+    // Xtream extensionless URLs usually end with the stream ID (numbers)
+    const isExtensionlessXtream = /\/\w+\/\w+\/\d+$/.test(lowerUrl) || /\/live\/\w+\/\w+\/\d+$/.test(lowerUrl);
+    return lowerUrl.includes('.m3u8') || isExtensionlessXtream;
   }
 
   async attach(video: HTMLVideoElement, url: string, opts?: AttachOpts): Promise<void> {

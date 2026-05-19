@@ -25,8 +25,24 @@ function buildApiUrl(
   action?: string,
   params?: Record<string, string>
 ): string {
-  const base = `${creds.host}:${creds.port}/player_api.php`;
-  const url = new URL(base);
+  let host = creds.host.trim().replace(/\/$/, '');
+  let base = `${host}:${creds.port}`;
+  
+  try {
+    const parsed = new URL(host);
+    if (parsed.port || (creds.port === 80 && parsed.protocol === 'http:') || (creds.port === 443 && parsed.protocol === 'https:')) {
+       if (!parsed.port) parsed.port = creds.port.toString();
+       base = parsed.origin;
+    } else {
+       parsed.port = creds.port.toString();
+       base = parsed.origin;
+    }
+  } catch (e) {
+    if (!host.match(/:\d+$/)) base = `${host}:${creds.port}`;
+    else base = host;
+  }
+
+  const url = new URL(`${base}/player_api.php`);
   url.searchParams.set('username', creds.username);
   url.searchParams.set('password', creds.password);
   if (action) url.searchParams.set('action', action);
@@ -113,15 +129,59 @@ export function buildXtreamStreamUrlCandidates(
   creds: XtreamCredentials,
   streamId: number
 ): string[] {
-  const base = `${creds.host}:${creds.port}`;
+  let host = creds.host.trim().replace(/\/$/, '');
+  
+  // Eğer host zaten port içeriyorsa (ör: http://example.com:8080) ve creds.port da aynıysa veya doluysa,
+  // host'un sonuna tekrar :port eklememek için URL parse kullanabiliriz.
+  let base = `${host}:${creds.port}`;
+  try {
+    const parsed = new URL(host);
+    // Eğer port URL içinde varsa, base'i direkt host olarak kullanabiliriz veya URL nesnesiyle oluşturabiliriz.
+    if (parsed.port || (creds.port === 80 && parsed.protocol === 'http:') || (creds.port === 443 && parsed.protocol === 'https:')) {
+       // Port zaten url içinde açıkça varsa veya varsayılan port ise host'u olduğu gibi kullan veya creds.port'u ezme.
+       if (!parsed.port) {
+           parsed.port = creds.port.toString();
+       }
+       base = parsed.origin;
+    } else {
+       parsed.port = creds.port.toString();
+       base = parsed.origin;
+    }
+  } catch (e) {
+    // URL parse edilemezse basit birleştirme yap, ama host'un sonunda port var mı diye kaba bir kontrol yap.
+    if (!host.match(/:\d+$/)) {
+      base = `${host}:${creds.port}`;
+    } else {
+      base = host;
+    }
+  }
+
   const u = creds.username;
   const p = creds.password;
-  return [
+  const eu = encodeURIComponent(u);
+  const ep = encodeURIComponent(p);
+
+  const candidates = [
     `${base}/live/${u}/${p}/${streamId}.m3u8`,
     `${base}/live/${u}/${p}/${streamId}.ts`,
     `${base}/${u}/${p}/${streamId}.m3u8`,
     `${base}/${u}/${p}/${streamId}.ts`,
+    `${base}/live/${u}/${p}/${streamId}`,
+    `${base}/${u}/${p}/${streamId}`,
   ];
+
+  if (u !== eu || p !== ep) {
+    candidates.push(
+      `${base}/live/${eu}/${ep}/${streamId}.m3u8`,
+      `${base}/live/${eu}/${ep}/${streamId}.ts`,
+      `${base}/${eu}/${ep}/${streamId}.m3u8`,
+      `${base}/${eu}/${ep}/${streamId}.ts`,
+      `${base}/live/${eu}/${ep}/${streamId}`,
+      `${base}/${eu}/${ep}/${streamId}`
+    );
+  }
+
+  return candidates;
 }
 
 /**
@@ -144,7 +204,8 @@ export function normalizeXtreamToChannel(
   stream: XtreamStream,
   sourceId: string,
   creds: XtreamCredentials,
-  categoryMap: Map<string, string>
+  categoryMap: Map<string, string>,
+  originalIndex?: number
 ): Channel {
   // Defensive: bazı provider'lar camelCase döner
   const streamId: number =
@@ -164,6 +225,7 @@ export function normalizeXtreamToChannel(
     streamUrlCandidates: candidates,
     group: categoryMap.get(stream.category_id) || 'Diğer',
     epgChannelId: stream.epg_channel_id || undefined,
+    originalIndex: stream.num !== undefined && stream.num > 0 ? Number(stream.num) : originalIndex,
   };
 }
 
@@ -240,8 +302,8 @@ export async function syncXtreamSource(
 
   const categoryMap = new Map(categories.map((c) => [c.category_id, c.category_name]));
 
-  const channels = filteredStreams.map((s) =>
-    normalizeXtreamToChannel(s, sourceId, creds, categoryMap)
+  const channels = filteredStreams.map((s, index) =>
+    normalizeXtreamToChannel(s, sourceId, creds, categoryMap, index)
   );
 
   if (channels.length > 0) {

@@ -26,7 +26,9 @@ export class MpegTSStrategy implements PlayerStrategy {
 
   canHandle(url: string, videoOrContentType?: HTMLVideoElement | string): boolean {
     if (typeof videoOrContentType === 'string' && videoOrContentType.toLowerCase().includes('video/mp2t')) return true;
-    return url.toLowerCase().endsWith('.ts');
+    const lowerUrl = url.toLowerCase();
+    const isExtensionlessXtream = /\/\w+\/\w+\/\d+$/.test(lowerUrl) || /\/live\/\w+\/\w+\/\d+$/.test(lowerUrl);
+    return lowerUrl.endsWith('.ts') || isExtensionlessXtream;
   }
 
   async attach(video: HTMLVideoElement, url: string, _opts?: AttachOpts): Promise<void> {
