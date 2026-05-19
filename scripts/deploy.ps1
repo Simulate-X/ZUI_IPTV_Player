@@ -6,10 +6,21 @@ $ErrorActionPreference = "Stop"
 
 # nvm use symlink'i değiştirir ama PowerShell'in PATH hash cache'i eski kalır.
 # Bu helper, Machine + User PATH'lerini session'a yeniden yükler.
+# NVM_SYMLINK'i de prepend eder ki nvm use sonrası npm/node her zaman bulunabilsin.
 function Refresh-Path {
     $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
     $userPath    = [Environment]::GetEnvironmentVariable("Path", "User")
-    $env:Path = "$machinePath;$userPath"
+    $combined = "$machinePath;$userPath"
+    # nvm symlink dizinini PATH'in başına ekle (yoksa)
+    $nvmSymlink = $env:NVM_SYMLINK
+    if (-not $nvmSymlink) {
+        # Fallback: registry'den oku
+        $nvmSymlink = [Environment]::GetEnvironmentVariable("NVM_SYMLINK", "Machine")
+    }
+    if ($nvmSymlink -and ($combined -notlike "*$nvmSymlink*")) {
+        $combined = "$nvmSymlink;$combined"
+    }
+    $env:Path = $combined
 }
 
 Write-Host ""
@@ -31,8 +42,7 @@ if ($currentVer -notmatch "v24") {
 }
 
 Write-Host "-> [2/3] TypeScript check + Vite build" -ForegroundColor Yellow
-$npmPath = (Get-Command npm).Source
-& $npmPath run build
+cmd.exe /c "npm run build"
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: build" -ForegroundColor Red; exit 1 }
 
 Write-Host ""
@@ -48,18 +58,16 @@ if ($currentVer -notmatch "v16.20.2") {
 }
 
 Write-Host "-> Packaging IPK (ares-package)" -ForegroundColor Yellow
-$npmPath = (Get-Command npm).Source
-& $npmPath run package
+cmd.exe /c "path"
+cmd.exe /c "npm run package"
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: package" -ForegroundColor Red; exit 1 }
 
 Write-Host "-> Installing to TV (ares-install)" -ForegroundColor Yellow
-$npmPath = (Get-Command npm).Source
-& $npmPath run install:tv
+cmd.exe /c "npm run install:tv"
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: install:tv" -ForegroundColor Red; exit 1 }
 
 Write-Host "-> Launching app (ares-launch)" -ForegroundColor Yellow
-$npmPath = (Get-Command npm).Source
-& $npmPath run launch
+cmd.exe /c "npm run launch"
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: launch" -ForegroundColor Red; exit 1 }
 
 Write-Host ""

@@ -104,7 +104,6 @@ export function deriveCategoriesFromSources(
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 
-const PAGE_SIZE = 50;
 
 type PlaylistStore = {
   // Underlying data: all channels per sourceId (loaded from IDB)
@@ -224,7 +223,7 @@ function recompute(
   );
 
   return {
-    visibleChannels: fullList.slice(0, PAGE_SIZE),
+    visibleChannels: fullList,
     totalInCategory: fullList.length,
     categories,
     activeCategoryChannelIds: fullList.map((c) => c.id),
