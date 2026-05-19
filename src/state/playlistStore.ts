@@ -293,21 +293,39 @@ export const usePlaylistStore = create<PlaylistStore>()(
           console.error('[playlistStore] Failed to load favorites from IDB', err);
         }
 
-        let loadedCategory: string | null = null;
-        try {
-          const { getDB } = await import('@/services/db');
-          const db = await getDB();
-          const uiRecord = await db.get('uiState', 'activeCategory');
-          if (uiRecord?.value) {
-            loadedCategory = uiRecord.value;
+        const { activeSourceFilter, favoriteIds, recentIds } = get();
+
+        // ── Öncelik 1: localStorage'dan gelen activeCategory (Zustand persist) ──
+        // partialize sayesinde senkron yüklenir — IDB race condition yok.
+        const lsCategory = get().activeCategory;
+        let loadedCategory: string | null = lsCategory;
+
+        // Validate: kanal listesinde hâlâ mevcut mu?
+        if (loadedCategory && loadedCategory !== '__favorites__' && loadedCategory !== '__recent__') {
+          const allChannels = Object.values(channelsBySource).flat();
+          const exists = allChannels.some(c => c.group === loadedCategory);
+          if (!exists) {
+            console.log(`[playlistStore] saved category "${loadedCategory}" not found — resetting`);
+            loadedCategory = null;
           }
-        } catch (err) {
-          console.error('[playlistStore] Failed to load uiState from IDB', err);
         }
 
-        const { activeSourceFilter, favoriteIds, recentIds } = get();
-        
-        // Initial recompute to get categories
+        // ── Öncelik 2: IDB migration (localStorage boşsa — eski kullanıcı yükseltmesi) ──
+        if (!loadedCategory) {
+          try {
+            const { getDB } = await import('@/services/db');
+            const db = await getDB();
+            const uiRecord = await db.get('uiState', 'activeCategory');
+            if (uiRecord?.value) {
+              loadedCategory = uiRecord.value as string;
+              console.log(`[playlistStore] activeCategory ← IDB migration: "${loadedCategory}"`);
+            }
+          } catch (err) {
+            console.error('[playlistStore] Failed to load uiState from IDB', err);
+          }
+        }
+
+        // Initial recompute to get categories list (smart default için gerekli)
         let derived = recompute(
           channelsBySource,
           loadedCategory,
@@ -317,24 +335,25 @@ export const usePlaylistStore = create<PlaylistStore>()(
           categoriesBySource
         );
 
-        // Smart default if no loaded category
+        // ── Öncelik 3: Smart default ──────────────────────────────────────────
         if (!loadedCategory) {
           if (favoriteIds.length > 0) {
             loadedCategory = '__favorites__';
           } else {
             const firstReal = derived.categories.find(c => c.name !== 'Tümü' && c.name !== 'Son İzlenen');
-            loadedCategory = firstReal ? firstReal.name : 'Tümü';
+            loadedCategory = firstReal ? firstReal.name : null;
           }
-          
-          // Recompute with the smart default
-          derived = recompute(
-            channelsBySource,
-            loadedCategory,
-            activeSourceFilter,
-            favoriteIds,
-            recentIds,
-            categoriesBySource
-          );
+
+          if (loadedCategory) {
+            derived = recompute(
+              channelsBySource,
+              loadedCategory,
+              activeSourceFilter,
+              favoriteIds,
+              recentIds,
+              categoriesBySource
+            );
+          }
         }
 
         set({ channelsBySource, categoriesBySource, activeCategory: loadedCategory, ...derived });
@@ -550,6 +569,7 @@ export const usePlaylistStore = create<PlaylistStore>()(
         recentIds: state.recentIds,
         lastFocusedChannelId: state.lastFocusedChannelId,
         activeSourceFilter: state.activeSourceFilter,
+        activeCategory: state.activeCategory,
       }),
     }
   )

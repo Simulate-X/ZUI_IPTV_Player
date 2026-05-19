@@ -35,26 +35,25 @@ export function ChannelList() {
 
   useEffect(() => {
     if (initialFocusDone.current) return;
+    // Don't attempt focus until channels are actually loaded from DB.
+    // Firing with empty visibleChannels would focus sidebar-all, which
+    // triggers D-026 debouncedFilter(null) and overwrites the saved category.
+    if (channelsLength === 0) return;
 
     const timeoutId = setTimeout(() => {
-      const candidates: string[] = [];
-
       if (
         lastFocusedChannelId?.includes(':') &&
         visibleChannels.some((c) => c.id === lastFocusedChannelId)
       ) {
-        candidates.push(`channel-${lastFocusedChannelId}`);
+        setFocus(`channel-${lastFocusedChannelId}`);
+      } else if (firstChannelId) {
+        setFocus(`channel-${firstChannelId}`);
+      } else {
+        setFocus('sidebar-all');
       }
 
-      if (firstChannelId) candidates.push(`channel-${firstChannelId}`);
-      candidates.push('sidebar-all');
-
-      const chosen = candidates[0];
-      setFocus(chosen);
-
       initialFocusDone.current = true;
-      
-    }, 150);
+    }, 50);
 
     return () => clearTimeout(timeoutId);
   }, [channelsLength, firstChannelId, lastFocusedChannelId, visibleChannels]);

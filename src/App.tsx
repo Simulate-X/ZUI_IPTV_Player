@@ -86,9 +86,11 @@ export default function App() {
   const closeModal = useUIStore((s) => s.closeModal);
 
   // D-028 Patch 4: Belt-and-suspenders focus guard.
-  // ChannelList's 150ms focus effect handles normal startup.
-  // This 1s fallback catches edge-cases where no setFocus succeeded:
-  // e.g. zero channels → no cards render → sidebar-all is always safe.
+  // ChannelList's focus effect handles normal startup (waits for channels to load).
+  // This 1s fallback catches edge-cases where no setFocus succeeded.
+  // IMPORTANT: If channels are already loaded, prefer focusing a channel card over
+  // sidebar-all — focusing sidebar-all triggers D-026 debouncedFilter(null) which
+  // would overwrite the saved activeCategory and show wrong channels.
   const { getCurrentFocusKey, setFocus: setNavFocus } = useFocusable({
     focusKey: 'APP_SHELL',
     focusable: false,
@@ -99,8 +101,19 @@ export default function App() {
       // (typed as string but SpatialNavigation.focusKey starts as null).
       const focusedKey = getCurrentFocusKey();
       if (!focusedKey) {
-        console.warn('[App] No focused component after 1s — forcing sidebar-all');
-        setNavFocus('sidebar-all');
+        const s = usePlaylistStore.getState();
+        const lastFocused = s.lastFocusedChannelId;
+        if (lastFocused && s.visibleChannels.some((c) => c.id === lastFocused)) {
+          console.warn('[App] No focused component after 1s — forcing channel focus', lastFocused);
+          setNavFocus(`channel-${lastFocused}`);
+        } else if (s.visibleChannels.length > 0) {
+          const firstId = s.visibleChannels[0].id;
+          console.warn('[App] No focused component after 1s — forcing first channel', firstId);
+          setNavFocus(`channel-${firstId}`);
+        } else {
+          console.warn('[App] No focused component after 1s — forcing sidebar-all (no channels yet)');
+          setNavFocus('sidebar-all');
+        }
       }
     }, 1000);
     return () => clearTimeout(timeoutId);

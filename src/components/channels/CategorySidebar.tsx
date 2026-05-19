@@ -48,6 +48,10 @@ function SidebarItem({
   const { ref, focused, setFocus } = useFocusableScroll({
     focusKey: itemFocusKey,
     onFocus: () => {
+      // Safety net: skip filter while channels are not yet loaded from DB.
+      // During startup, DB hydration can take >150ms — any sidebar focus before
+      // that completes would fire debouncedFilter and overwrite the saved category.
+      if (usePlaylistStore.getState().visibleChannels.length === 0) return;
       // D-026: focus = instant filter (debounced to absorb fast D-pad scroll)
       if (!showLock) {
         onFocusFilter();
