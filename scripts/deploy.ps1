@@ -4,6 +4,14 @@
 
 $ErrorActionPreference = "Stop"
 
+# nvm use symlink'i değiştirir ama PowerShell'in PATH hash cache'i eski kalır.
+# Bu helper, Machine + User PATH'lerini session'a yeniden yükler.
+function Refresh-Path {
+    $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    $userPath    = [Environment]::GetEnvironmentVariable("Path", "User")
+    $env:Path = "$machinePath;$userPath"
+}
+
 Write-Host ""
 Write-Host "=======================================" -ForegroundColor DarkGray
 Write-Host "  ZUI IPTV Player - Deploy Pipeline" -ForegroundColor Cyan
@@ -17,6 +25,7 @@ try { $currentVer = node -v } catch {}
 if ($currentVer -notmatch "v24") {
     nvm use 24
     if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: nvm use 24" -ForegroundColor Red; exit 1 }
+    Refresh-Path
 } else {
     Write-Host "   Already on Node $currentVer" -ForegroundColor Gray
 }
@@ -33,6 +42,7 @@ try { $currentVer = node -v } catch {}
 if ($currentVer -notmatch "v16.20.2") {
     nvm use 16.20.2
     if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: nvm use 16.20.2" -ForegroundColor Red; exit 1 }
+    Refresh-Path
 } else {
     Write-Host "   Already on Node $currentVer" -ForegroundColor Gray
 }

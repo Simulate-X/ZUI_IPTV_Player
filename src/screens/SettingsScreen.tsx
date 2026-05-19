@@ -6,8 +6,10 @@ import { AddSourceModal } from '@/components/settings/AddSourceModal';
 import { useSourceStore } from '@/state/sourceStore';
 import { usePlaylistStore } from '@/state/playlistStore';
 import { useEpgStore } from '@/state/epgStore';
+import { useParentalStore } from '@/state/parentalStore';
 import { channelCache } from '@/services/channelCache';
 import { epgCache } from '@/services/epgCache';
+import { PinSetupModal } from '@/components/parental/PinSetupModal';
 import type { Source } from '@/types/source';
 
 // ─── FilterEditPanel ──────────────────────────────────────────────────────────
@@ -352,6 +354,93 @@ function EPGSection() {
   );
 }
 
+// ─── ParentalControlSection ───────────────────────────────────────────────────
+
+function ParentalControlSection({ onSetupPin }: { onSetupPin: () => void }) {
+  const pinHash = useParentalStore((s) => s.pinHash);
+  const clearPin = useParentalStore((s) => s.clearPin);
+  const protectedCategories = useParentalStore((s) => s.protectedCategories);
+  const toggleProtected = useParentalStore((s) => s.toggleProtected);
+  const autoDetectProtected = useParentalStore((s) => s.autoDetectProtected);
+
+  const categories = usePlaylistStore((s) => s.categories);
+
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-h2 text-text-primary border-b border-border-subtle pb-3">Ebeveyn Kontrolü</h2>
+
+      {!pinHash ? (
+        <div className="flex flex-col items-start gap-2">
+          <p className="text-body text-text-secondary">
+            Yetişkin içerikleri gizlemek veya kategorilere PIN koruması eklemek için bir PIN belirleyin.
+          </p>
+          <FocusableButton
+            focusKey="settings-pin-setup"
+            variant="primary"
+            size="md"
+            onEnterPress={onSetupPin}
+          >
+            PIN Belirle
+          </FocusableButton>
+        </div>
+      ) : (
+        <>
+          <div className="flex gap-4">
+            <FocusableButton
+              focusKey="settings-pin-change"
+              variant="secondary"
+              size="sm"
+              onEnterPress={onSetupPin}
+            >
+              PIN Değiştir
+            </FocusableButton>
+            <FocusableButton
+              focusKey="settings-pin-clear"
+              variant="ghost"
+              size="sm"
+              onEnterPress={() => void clearPin()}
+            >
+              PIN Kaldır
+            </FocusableButton>
+          </div>
+
+          <div className="mt-4">
+            <h3 className="text-body text-text-primary mb-2">Korumalı Kategoriler</h3>
+            
+            <FocusableButton
+              focusKey="settings-pin-autodetect"
+              variant="secondary"
+              size="sm"
+              onEnterPress={() => void autoDetectProtected(categories.map(c => c.name))}
+            >
+              Yetişkin Kanalları Otomatik İşaretle
+            </FocusableButton>
+
+            <div className="mt-4 flex flex-col gap-1 max-h-64 overflow-y-auto pr-4 pointer-events-auto">
+              {categories.map((cat) => {
+                // Settings uses pointer-events-auto so normal mouse clicks work here
+                const isChecked = protectedCategories.has(cat.name);
+                return (
+                  <label key={cat.name} className="flex items-center gap-3 py-2 cursor-pointer hover:bg-bg-elevated rounded px-2">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => void toggleProtected(cat.name)}
+                      className="w-5 h-5 accent-accent"
+                    />
+                    <span className="text-body text-text-primary">{cat.name}</span>
+                    <span className="text-small text-text-tertiary ml-auto">{cat.count}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 // ─── AboutSection ─────────────────────────────────────────────────────────────
 
 function AboutSection() {
@@ -370,6 +459,7 @@ function AboutSection() {
 
 export function SettingsScreen() {
   const [showAddSource, setShowAddSource] = useState(false);
+  const [showPinSetup, setShowPinSetup] = useState(false);
   const sources = useSourceStore((s) => s.sources);
   const setChannelsForSource = usePlaylistStore((s) => s.setChannelsForSource);
 
@@ -401,6 +491,7 @@ export function SettingsScreen() {
         <div className="max-w-2xl flex flex-col gap-12">
           <SourcesSection onAddSource={() => setShowAddSource(true)} />
           <EPGSection />
+          <ParentalControlSection onSetupPin={() => setShowPinSetup(true)} />
           <AboutSection />
         </div>
       </div>
@@ -409,6 +500,15 @@ export function SettingsScreen() {
         <AddSourceModal
           onSuccess={(id) => void handleAddSuccess(id)}
           onCancel={() => setShowAddSource(false)}
+        />
+      )}
+
+      {showPinSetup && (
+        <PinSetupModal
+          onClose={() => {
+            setShowPinSetup(false);
+            setFocus('settings-pin-setup'); // Return focus roughly
+          }}
         />
       )}
     </FocusContext.Provider>

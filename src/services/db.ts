@@ -4,7 +4,7 @@ import type { Source } from '@/types/source';
 import type { EPGChannel, EPGProgram } from '@/types/epg';
 
 const DB_NAME = 'zui-iptv-player';
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 
 type EPGMeta = { url: string; syncedAt: number };
 
@@ -42,7 +42,11 @@ export type ZuiDB = {
   };
   uiState: {
     key: string;
-    value: { id: string; value: string };
+    value: { id: string; value: string | any };
+  };
+  logoCache: {
+    key: string;
+    value: { url: string; status: 'ok' | 'failed'; timestamp: number };
   };
 };
 
@@ -112,6 +116,14 @@ export async function getDB(): Promise<IDBPDatabase<ZuiDB>> {
           db.createObjectStore('uiState', { keyPath: 'id' });
         }
         console.log('[DB] v6 migration: uiState store added');
+      }
+
+      // v6 -> v7
+      if (oldVersion < 7) {
+        if (!db.objectStoreNames.contains('logoCache')) {
+          db.createObjectStore('logoCache', { keyPath: 'url' });
+        }
+        console.log('[DB] v7 migration: logoCache store added');
       }
     },
   });

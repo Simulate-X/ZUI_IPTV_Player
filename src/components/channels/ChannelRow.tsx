@@ -1,8 +1,9 @@
 import { useRef } from 'react';
-import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
+import { useFocusableScroll } from '@/hooks/useFocusableScroll';
 import { useLongPress } from '@/hooks/useLongPress';
 import { usePlaylistStore } from '@/state/playlistStore';
 import { useNowNext } from '@/state/epgStore';
+import { useChannelLogo } from '@/hooks/useChannelLogo';
 import type { Channel } from '@/types/channel';
 
 interface Props {
@@ -15,13 +16,16 @@ interface Props {
 export function ChannelRow({ channel, onSelect, onFocus, onToggleFavorite }: Props) {
   const isFavorite = usePlaylistStore(s => s.favoriteIds.includes(channel.id));
   const nowNext = useNowNext(channel.id);
+  const { showImg, onError, onLoad } = useChannelLogo(channel.logoUrl);
   
   // Declare a ref to track if long press occurred
   const wasLongPressedRef = useRef(false);
 
-  const { ref, focused } = useFocusable({
+  const { ref, focused } = useFocusableScroll({
     focusKey: `channel-${channel.id}`,
     onFocus,
+    block: 'nearest',
+    inline: 'nearest',
   });
 
   useLongPress({
@@ -35,30 +39,25 @@ export function ChannelRow({ channel, onSelect, onFocus, onToggleFavorite }: Pro
   return (
     <div
       ref={ref as React.RefObject<HTMLDivElement>}
-      className={`p-2 flex items-center gap-2.5 rounded-md transition-colors ${
+      onClick={onSelect}
+      className={`p-2 flex items-center gap-2.5 rounded-md transition-colors cursor-pointer ${
         focused ? 'bg-accent/10 border border-accent' : 'border border-transparent'
       }`}
     >
       <div className="w-8 h-8 rounded flex-shrink-0 bg-bg-base flex items-center justify-center overflow-hidden">
-        {channel.logoUrl ? (
+        {showImg && channel.logoUrl ? (
           <img 
             src={channel.logoUrl} 
             alt="" 
             className="w-full h-full object-contain" 
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              if (e.currentTarget.nextElementSibling) {
-                (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'block';
-              }
-            }}
+            onError={onError}
+            onLoad={onLoad}
           />
-        ) : null}
-        <span 
-          className="text-accent text-tiny"
-          style={{ display: channel.logoUrl ? 'none' : 'block' }}
-        >
-          {channel.name.charAt(0)}
-        </span>
+        ) : (
+          <span className="text-accent text-tiny">
+            {channel.name.charAt(0)}
+          </span>
+        )}
       </div>
       
       <div className="flex-1 min-w-0 pr-2">

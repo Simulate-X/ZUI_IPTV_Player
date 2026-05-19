@@ -15,6 +15,8 @@ import { useSourceStore } from '@/state/sourceStore';
 import { useEpgStore } from '@/state/epgStore';
 import { epgCache } from '@/services/epgCache';
 import { isEPGStale } from '@/services/epg.service';
+import { useParentalStore } from '@/state/parentalStore';
+import { useLogoCacheStore } from '@/state/logoCacheStore';
 
 const SIX_HOURS = 6 * 60 * 60 * 1000;
 
@@ -42,6 +44,9 @@ function useInitApp() {
 
       // 3. Load EPG match map from cache
       await loadEpgFromCache();
+
+      await useParentalStore.getState().loadFromDB();
+      await useLogoCacheStore.getState().loadFromDB();
 
       // D-024 (kapsam revizyonu 2026-05-18): App startup'ta her zaman channelList.
       // lastMainScreen sadece Player → BACK navigasyonu için kullanılır.

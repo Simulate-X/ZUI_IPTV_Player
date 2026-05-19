@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { FocusContext, useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 import { usePlaylistStore } from '@/state/playlistStore';
 import { useSourceStore } from '@/state/sourceStore';
+import { useParentalStore } from '@/state/parentalStore';
 import { useFocusableScroll } from '@/hooks/useFocusableScroll';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 
@@ -40,13 +41,23 @@ function SidebarItem({
   const nextKeyRef = useRef(nextKey);
   nextKeyRef.current = nextKey;
 
+  const isProtected = useParentalStore((s) => s.isProtected(label));
+  const unlockedThisSession = useParentalStore((s) => s.unlockedThisSession);
+  const showLock = isProtected && !unlockedThisSession;
+
   const { ref, focused, setFocus } = useFocusableScroll({
     focusKey: itemFocusKey,
     onFocus: () => {
       // D-026: focus = instant filter (debounced to absorb fast D-pad scroll)
-      onFocusFilter();
+      if (!showLock) {
+        onFocusFilter();
+      }
     },
     onEnterPress: () => {
+      if (showLock) {
+        usePlaylistStore.getState().setPendingProtectedCategory(label);
+        return;
+      }
       // Enter: filter already applied — move focus to grid content
       onSelect();
     },
@@ -90,7 +101,13 @@ function SidebarItem({
   return (
     <div
       ref={ref as React.RefObject<HTMLDivElement>}
-      onClick={onSelect}
+      onClick={() => {
+        if (showLock) {
+          usePlaylistStore.getState().setPendingProtectedCategory(label);
+        } else {
+          onSelect();
+        }
+      }}
       className={[
         'flex items-center justify-between px-4 py-3 rounded cursor-pointer transition-colors',
         isActive ? 'bg-bg-elevated text-accent' : 'text-text-secondary',
@@ -98,6 +115,7 @@ function SidebarItem({
       ].join(' ')}
     >
       <span className="text-body truncate flex items-center gap-2">
+        {showLock && <i className="text-yellow-500 text-tiny not-italic">🔒</i>}
         {icon}
         {label}
       </span>

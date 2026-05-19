@@ -115,6 +115,7 @@ type PlaylistStore = {
   // Active filters
   activeCategory: string | null;
   activeSourceFilter: string | 'all';
+  pendingProtectedCategory: string | null;
 
   // Derived + paginated view (for ChannelGrid compatibility)
   visibleChannels: Channel[];
@@ -140,6 +141,7 @@ type PlaylistStore = {
 
   setActiveCategory: (category: string | null) => void;
   setActiveSourceFilter: (sourceId: string | 'all') => void;
+  setPendingProtectedCategory: (category: string | null) => void;
 
   appendChannels: (offset: number, limit: number) => void;
 
@@ -238,6 +240,7 @@ export const usePlaylistStore = create<PlaylistStore>()(
       categoriesBySource: {},
       activeCategory: null,
       activeSourceFilter: 'all',
+      pendingProtectedCategory: null,
       visibleChannels: [],
       totalInCategory: 0,
       categories: [],
@@ -411,6 +414,8 @@ export const usePlaylistStore = create<PlaylistStore>()(
         );
         set({ activeSourceFilter: sourceId, ...derived });
       },
+
+      setPendingProtectedCategory: (category) => set({ pendingProtectedCategory: category }),
 
       appendChannels: (offset, limit) => {
         const { activeCategoryChannelIds, channelsBySource } = get();

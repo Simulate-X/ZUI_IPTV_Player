@@ -3,6 +3,7 @@ import { FocusContext, useFocusable } from '@noriginmedia/norigin-spatial-naviga
 import { CategorySidebar } from '@/components/channels/CategorySidebar';
 import { ChannelListPro } from '@/components/channels/ChannelListPro';
 import { PreviewPane } from '@/components/channels/PreviewPane';
+import { PinEntryModal } from '@/components/parental/PinEntryModal';
 import { usePlaylistStore } from '@/state/playlistStore';
 import { useUIStore } from '@/state/uiStore';
 import { usePlayerStore } from '@/state/playerStore';
@@ -12,6 +13,9 @@ import { channelCache } from '@/services/channelCache';
 export function ChannelList() {
   const [focusedChannelId, setFocusedChannelId] = useState<string | null>(null);
 
+  const pendingProtectedCategory = usePlaylistStore((s) => s.pendingProtectedCategory);
+  const setPendingProtectedCategory = usePlaylistStore((s) => s.setPendingProtectedCategory);
+  const setActiveCategory = usePlaylistStore((s) => s.setActiveCategory);
   const selectChannel = usePlaylistStore((s) => s.selectChannel);
   const addToRecent = usePlaylistStore((s) => s.addToRecent);
   const lastFocusedChannelId = usePlaylistStore((s) => s.lastFocusedChannelId);
@@ -110,6 +114,29 @@ export function ChannelList() {
         />
         <PreviewPane focusedChannelId={focusedChannelId} />
       </div>
+
+      {pendingProtectedCategory && (
+        <PinEntryModal
+          categoryName={pendingProtectedCategory}
+          onUnlock={() => {
+            setActiveCategory(pendingProtectedCategory);
+            setPendingProtectedCategory(null);
+            
+            // Wait for render, then focus
+            setTimeout(() => {
+              const s = usePlaylistStore.getState();
+              if (s.visibleChannels.length > 0) {
+                const firstId = s.visibleChannels[0].id;
+                setFocus(`channel-${firstId}`);
+              }
+            }, 50);
+          }}
+          onCancel={() => {
+            setPendingProtectedCategory(null);
+            setFocus(`sidebar-all`); // Return focus to sidebar
+          }}
+        />
+      )}
     </FocusContext.Provider>
   );
 }
