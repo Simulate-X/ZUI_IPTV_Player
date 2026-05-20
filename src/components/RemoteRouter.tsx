@@ -27,6 +27,7 @@ export function RemoteRouter() {
           case 'channelList':
           case 'epg':
           case 'settings':
+          case 'movies':
             // Alt sayfalardan BACK → Anasayfa
             navigate('home');
             break;

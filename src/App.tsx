@@ -6,6 +6,7 @@ import { ChannelList } from '@/screens/ChannelList';
 import { EPGScreen } from '@/screens/EPGScreen';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
+import { MoviesScreen } from '@/screens/MoviesScreen';
 import { SplashScreen } from '@/components/SplashScreen';
 import { RemoteRouter } from '@/components/RemoteRouter';
 import { TopBar } from '@/components/layout/TopBar';
@@ -163,6 +164,7 @@ export default function App() {
       case 'channelList': return <ChannelList />;
       case 'epg':         return <EPGScreen />;
       case 'settings':    return <SettingsScreen />;
+      case 'movies':      return <MoviesScreen />;
       case 'player':      return <VideoPlayer />;
       default:            return <SplashScreen />;
     }

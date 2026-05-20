@@ -65,11 +65,18 @@ function SearchBar() {
 
 // ─── Section nav icons (v1: visual-only) ─────────────────────────────────────
 
-const NAV_ICONS = [
+type NavIconConfig = {
+  id: string;
+  label: string;
+  screen: Screen;
+  icon: React.ReactElement;
+};
+
+const NAV_ICON_CONFIGS: NavIconConfig[] = [
   {
-    id:    'live',
+    id: 'live',
     label: 'Live TV',
-    active: true,
+    screen: 'channelList',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"
@@ -81,9 +88,9 @@ const NAV_ICONS = [
     ),
   },
   {
-    id:    'movies',
-    label: 'Movies',
-    active: false,
+    id: 'movies',
+    label: 'Filmler',
+    screen: 'movies',
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"
@@ -95,9 +102,9 @@ const NAV_ICONS = [
     ),
   },
   {
-    id:    'series',
-    label: 'Series',
-    active: false,
+    id: 'series',
+    label: 'Diziler',
+    screen: 'channelList', // v1: not yet a separate screen — falls back to Live TV
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
         strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"
@@ -111,34 +118,58 @@ const NAV_ICONS = [
   },
 ];
 
-function SectionNav() {
+// ─── Single nav icon button ───────────────────────────────────────────────────
+
+function SectionNavIcon({ config, isActive }: { config: NavIconConfig; isActive: boolean }) {
+  const navigate = useUIStore(s => s.navigate);
+  const isSeriesV1 = config.id === 'series'; // disabled until v2
+
+  const { ref, focused } = useFocusable({
+    focusKey: `topbar-nav-${config.id}`,
+    onEnterPress: isSeriesV1 ? undefined : () => navigate(config.screen),
+    focusable: !isSeriesV1,
+  });
+
   return (
-    // v1: non-interactive, visually present — full opacity on LIVE (active), muted on Movies/Series
-    <div className="flex items-center gap-3 opacity-80">
-      {NAV_ICONS.map((item) => (
-        <div
+    <div
+      ref={ref as React.RefObject<HTMLDivElement>}
+      onClick={isSeriesV1 ? undefined : () => navigate(config.screen)}
+      title={isSeriesV1 ? `${config.label} — yakında` : config.label}
+      className={[
+        'relative grid place-items-center w-12 h-12 rounded-full border transition-all',
+        isSeriesV1
+          ? 'border-white/[0.08] text-white/25 opacity-40 cursor-not-allowed'
+          : isActive
+            ? 'border-accent/55 bg-accent/[0.10] text-accent shadow-[0_0_28px_-10px_#E8B567] cursor-pointer'
+            : focused
+              ? 'border-[#E8B567]/55 bg-[#E8B567]/[0.08] text-[#E8B567] shadow-[0_0_24px_-10px_#E8B567] cursor-pointer scale-[1.06]'
+              : 'border-white/[0.08] text-white/55 hover:text-white/80 cursor-pointer',
+      ].join(' ')}
+    >
+      {config.icon}
+      {isActive && (
+        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-accent shadow-amber-glow" />
+      )}
+      <span className={[
+        'absolute top-full mt-1.5 left-1/2 -translate-x-1/2 text-[9px] uppercase tracking-[0.3em] whitespace-nowrap font-semibold',
+        isActive ? 'text-accent' : focused ? 'text-[#E8B567]' : 'text-white/35',
+      ].join(' ')}>
+        {config.label}
+      </span>
+    </div>
+  );
+}
+
+function SectionNav() {
+  const currentScreen = useUIStore(s => s.currentScreen);
+  return (
+    <div className="flex items-center gap-3">
+      {NAV_ICON_CONFIGS.map((item) => (
+        <SectionNavIcon
           key={item.id}
-          title={`${item.label} — v2'de aktif`}
-          className={[
-            'relative grid place-items-center w-12 h-12 rounded-full border transition-all',
-            item.active
-              ? 'border-accent/55 bg-accent/[0.10] text-accent shadow-[0_0_28px_-10px_#E8B567]'
-              : 'border-white/[0.08] text-white/30 opacity-40',
-          ].join(' ')}
-        >
-          {item.icon}
-          {/* Active bullet */}
-          {item.active && (
-            <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-accent shadow-amber-glow" />
-          )}
-          {/* Label */}
-          <span className={[
-            'absolute top-full mt-1.5 left-1/2 -translate-x-1/2 text-[9px] uppercase tracking-[0.3em] whitespace-nowrap font-semibold',
-            item.active ? 'text-accent' : 'text-white/30',
-          ].join(' ')}>
-            {item.label}
-          </span>
-        </div>
+          config={item}
+          isActive={currentScreen === item.screen && item.id !== 'series'}
+        />
       ))}
     </div>
   );
@@ -183,7 +214,7 @@ function formatClock(ts: number): { time: string; date: string } {
 
 // ─── TopBar ───────────────────────────────────────────────────────────────────
 
-const TOPBAR_SCREENS: Screen[] = ['channelList', 'epg', 'settings'];
+const TOPBAR_SCREENS: Screen[] = ['channelList', 'epg', 'settings', 'movies'];
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'channelList', label: 'Kanallar' },

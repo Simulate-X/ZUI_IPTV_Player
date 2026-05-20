@@ -238,7 +238,7 @@ function HomeHeader({
       <nav className="flex items-center gap-8 ml-auto mr-2">
         <NavButton focusKey="topnav-home"    icon={<HomeIcon />}   label="Anasayfa" active={true}  onPress={() => {/* already home */}} />
         <NavButton focusKey="topnav-livetv"  icon={<LiveTVIcon />} label="Live TV"  active={false} onPress={() => navigate('channelList')} />
-        <NavButton focusKey="topnav-movies"  icon={<MoviesIcon />} label="Movies"   active={false} onPress={v2Stub} />
+        <NavButton focusKey="topnav-movies"  icon={<MoviesIcon />} label="Filmler"  active={false} onPress={() => navigate('movies')} />
         <NavButton focusKey="topnav-series"  icon={<SeriesIcon />} label="Series"   active={false} onPress={v2Stub} />
       </nav>
 
@@ -539,10 +539,17 @@ type SectionDef = {
   onPress: () => void;
 };
 
-function SectionCard({ def, idx }: { def: SectionDef; idx: number }) {
+function SectionCard({ def, idx, total }: { def: SectionDef; idx: number; total: number }) {
   const { ref, focused } = useFocusable({
     focusKey: `home-section-${idx}`,
     onEnterPress: def.onPress,
+    onArrowPress: (dir) => {
+      // Sol kenarda (Canlı TV) sola basınca focus kaybolmasın
+      if (dir === 'left' && idx === 0) return false;
+      // Sağ kenarda (Ayarlar) sağa basınca focus kaybolmasın
+      if (dir === 'right' && idx === total - 1) return false;
+      return true;
+    },
   });
 
   const isActive = def.isActive ?? false;
@@ -680,9 +687,9 @@ function SectionsGrid({
       key: 'movies',
       icon: <FilmsIcon />,
       title: 'Filmler',
-      subtitle: 'Yakında · v2.1',
-      badge: 'Yakında',
-      onPress: v2Stub,
+      subtitle: 'VOD · Tüm filmler',
+      isActive: true,
+      onPress: () => navigate('movies'),
     },
     {
       key: 'series',
@@ -720,7 +727,7 @@ function SectionsGrid({
       </div>
       <div className="grid grid-cols-5 gap-5">
         {sections.map((s, idx) => (
-          <SectionCard key={s.key} def={s} idx={idx} />
+          <SectionCard key={s.key} def={s} idx={idx} total={sections.length} />
         ))}
       </div>
     </div>

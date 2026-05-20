@@ -60,3 +60,31 @@ export type XtreamStream = {
   // D-035: bazı provider'lar stream'in hangi bouquet'lere ait olduğunu döner
   bouquet_ids?: number[];
 };
+
+// ─── VOD (Movie) types ──────────────────────────────────────────────────────
+
+export type XtreamVodStream = {
+  num: number;
+  name: string;
+  stream_type: 'movie';
+  stream_id: number;
+  stream_icon: string;     // poster URL
+  rating: string;          // "7.5" — string, needs parseFloat
+  rating_5based: number;
+  added: string;           // unix timestamp string
+  category_id: string;
+  container_extension: string;  // "mkv" | "mp4" | "avi" …
+  custom_sid?: string;
+  direct_source?: string;
+  // Optional TMDb/provider extras (not all providers expose these)
+  plot?: string;
+  cast?: string;
+  director?: string;
+  genre?: string;
+  release_date?: string;   // "YYYY-MM-DD" or year string
+  youtube_trailer?: string;
+  backdrop_path?: string[] | string;
+  // TMDb-enriched fields (some providers)
+  tmdb_id?: number | string;
+  runtime?: string;         // "120" minutes as string on some providers
+};
