@@ -137,6 +137,13 @@ export default function App() {
           return;
         }
 
+        // Movies screen — focus back button (sidebar top)
+        if (currentScreen === 'movies') {
+          console.warn('[App] No focused component after 1s — forcing MOVIES_BACK_HOME');
+          setNavFocus('MOVIES_BACK_HOME');
+          return;
+        }
+
         const s = usePlaylistStore.getState();
         const lastFocused = s.lastFocusedChannelId;
         if (lastFocused && s.visibleChannels.some((c) => c.id === lastFocused)) {
