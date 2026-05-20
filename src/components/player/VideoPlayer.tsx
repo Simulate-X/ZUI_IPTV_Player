@@ -157,7 +157,7 @@ export function VideoPlayer() {
         />
       )}
 
-      <OSD />
+      <OSD videoRef={videoRef} />
     </div>
   );
 }
