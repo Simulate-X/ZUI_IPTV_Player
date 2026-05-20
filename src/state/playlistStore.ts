@@ -129,12 +129,16 @@ type PlaylistStore = {
   // Internally computed (for zap)
   activeCategoryChannelIds: string[];
 
+  // Hidden categories (visibility-only, no PIN)
+  hiddenCategories: Set<string>;
+
   // Syncing indicator (for Onboarding progress)
   isSyncing: boolean;
   syncProgress: number;
 
   // Actions
   loadAllFromDB: () => Promise<void>;
+  toggleHiddenCategory: (categoryName: string) => Promise<void>;
   setChannelsForSource: (sourceId: string, channels: Channel[]) => void;
   removeChannelsForSource: (sourceId: string) => void;
 
@@ -247,6 +251,7 @@ export const usePlaylistStore = create<PlaylistStore>()(
       favoriteIds: [],
       recentIds: [],
       activeCategoryChannelIds: [],
+      hiddenCategories: new Set<string>(),
       isSyncing: false,
       syncProgress: 0,
 
@@ -355,7 +360,29 @@ export const usePlaylistStore = create<PlaylistStore>()(
           }
         }
 
+        // Load hiddenCategories from IDB
+        try {
+          const { getDB } = await import('@/services/db');
+          const db = await getDB();
+          const hiddenRecord = await db.get('uiState', 'hiddenCategories');
+          if (hiddenRecord?.value) {
+            set({ hiddenCategories: new Set(hiddenRecord.value as string[]) });
+          }
+        } catch (err) {
+          console.error('[playlistStore] Failed to load hiddenCategories from IDB', err);
+        }
+
         set({ channelsBySource, categoriesBySource, activeCategory: loadedCategory, ...derived });
+      },
+
+      toggleHiddenCategory: async (categoryName: string) => {
+        const next = new Set(get().hiddenCategories);
+        if (next.has(categoryName)) next.delete(categoryName);
+        else next.add(categoryName);
+        set({ hiddenCategories: next });
+        const { getDB } = await import('@/services/db');
+        const db = await getDB();
+        await db.put('uiState', { id: 'hiddenCategories', value: Array.from(next) });
       },
 
       setChannelsForSource: (sourceId, channels) => {

@@ -4,6 +4,7 @@ import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { Onboarding } from '@/screens/Onboarding';
 import { ChannelList } from '@/screens/ChannelList';
 import { EPGScreen } from '@/screens/EPGScreen';
+import { HomeScreen } from '@/screens/HomeScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { SplashScreen } from '@/components/SplashScreen';
 import { RemoteRouter } from '@/components/RemoteRouter';
@@ -17,6 +18,7 @@ import { epgCache } from '@/services/epgCache';
 import { isEPGStale } from '@/services/epg.service';
 import { useParentalStore } from '@/state/parentalStore';
 import { useLogoCacheStore } from '@/state/logoCacheStore';
+import { Toast } from '@/components/ui/Toast';
 
 const SIX_HOURS = 6 * 60 * 60 * 1000;
 
@@ -48,11 +50,10 @@ function useInitApp() {
       await useParentalStore.getState().loadFromDB();
       await useLogoCacheStore.getState().loadFromDB();
 
-      // D-024 (kapsam revizyonu 2026-05-18): App startup'ta her zaman channelList.
-      // lastMainScreen sadece Player → BACK navigasyonu için kullanılır.
-      // EPG/Settings'te takılıp çıkan kullanıcı bir sonraki açılışta orada kalmamalı
-      // (özellikle D-028: EPG mouse-only, D-pad çalışmıyor).
-      navigate('channelList');
+      // D-024 / Faz-5D: App startup'ta her zaman Home.
+      // Home → Greeting + Kaldığın Yer experience. Live TV önceden default'tu,
+      // artık Anasayfa default; kullanıcı oradan yönlenir.
+      navigate('home');
       // lastMainScreen'i de sıfırla — localStorage'da 'epg' kalmış olabilir
       useUIStore.setState({ lastMainScreen: 'channelList' });
 
@@ -101,6 +102,17 @@ export default function App() {
       // (typed as string but SpatialNavigation.focusKey starts as null).
       const focusedKey = getCurrentFocusKey();
       if (!focusedKey) {
+        const currentScreen = useUIStore.getState().currentScreen;
+
+        // Home screen — focus smart default
+        if (currentScreen === 'home') {
+          const lastId = usePlaylistStore.getState().lastFocusedChannelId;
+          const key = lastId ? 'home-resume-continue' : 'home-section-0';
+          console.warn('[App] No focused component after 1s — forcing home default', key);
+          setNavFocus(key);
+          return;
+        }
+
         const s = usePlaylistStore.getState();
         const lastFocused = s.lastFocusedChannelId;
         if (lastFocused && s.visibleChannels.some((c) => c.id === lastFocused)) {
@@ -124,6 +136,7 @@ export default function App() {
     switch (screen) {
       case 'loading':     return <SplashScreen />;
       case 'onboarding':  return <Onboarding />;
+      case 'home':        return <HomeScreen />;
       case 'channelList': return <ChannelList />;
       case 'epg':         return <EPGScreen />;
       case 'settings':    return <SettingsScreen />;
@@ -142,6 +155,8 @@ export default function App() {
       <RemoteRouter />
       <TopBar />
       <main className="relative flex-1 overflow-hidden z-10">{renderScreen()}</main>
+      <Toast />
+
       {modalOpen === 'exit' && (
         <ConfirmModal
           title="Uygulamadan çık"

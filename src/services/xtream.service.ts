@@ -321,6 +321,36 @@ export async function syncXtreamSource(
   return { channels, bouquets: userBouquets, categoryNames };
 }
 
+export interface XtreamUserInfoResult {
+  serverUrl: string;
+  username: string;
+  status: string;
+  expDate: number | null;
+  maxConnections: number;
+  isTrial: boolean;
+}
+
+export async function getUserInfo(creds: XtreamCredentials): Promise<XtreamUserInfoResult | null> {
+  try {
+    const url = buildApiUrl(creds);
+    const data = await fetchJson<import('@/types/xtream').XtreamAuthResponse>(url);
+    const u = data.user_info;
+    const s = data.server_info;
+    const expRaw = u?.exp_date;
+    const expDate = expRaw && expRaw !== '0' && expRaw !== '' ? parseInt(expRaw, 10) : null;
+    return {
+      serverUrl: s ? `${s.server_protocol}://${s.url}:${s.port}` : creds.host,
+      username: u?.username ?? creds.username,
+      status: u?.status ?? 'Unknown',
+      expDate,
+      maxConnections: u?.max_connections ? parseInt(String(u.max_connections), 10) : 1,
+      isTrial: u?.is_trial === '1',
+    };
+  } catch {
+    return null;
+  }
+}
+
 function formatTime(ts: number): string {
   const d = new Date(ts);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;

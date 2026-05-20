@@ -3,6 +3,7 @@ import { FocusContext, useFocusable } from '@noriginmedia/norigin-spatial-naviga
 import { usePlaylistStore } from '@/state/playlistStore';
 import { useSourceStore } from '@/state/sourceStore';
 import { useParentalStore } from '@/state/parentalStore';
+import { useUIStore } from '@/state/uiStore';
 import { useFocusableScroll } from '@/hooks/useFocusableScroll';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
 
@@ -71,7 +72,7 @@ function SidebarItem({
         if (prev) {
           setFocusRef.current?.(prev);
         } else {
-          // İlk item → TopBar
+          // İlk item (sidebar-all'un üstü artık sidebar-home-btn, o da kendi UP'ını blokluyor)
           setFocusRef.current?.('topbar-channelList');
         }
         return false;
@@ -113,14 +114,21 @@ function SidebarItem({
         }
       }}
       className={[
-        // Aurora sidebar item — no bg card, hairline row with bullet dot
-        'group flex items-center gap-3 px-2 py-2.5 cursor-pointer transition-colors',
+        'group flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-all text-[15px] tracking-wide',
         isActive
-          ? 'text-white relative'
+          ? 'border-transparent text-white relative'
           : showLock
-            ? 'text-[#C9A063]/75 italic'
-            : 'text-white/55 hover:text-white/85',
-        focused ? 'text-white' : '',
+            ? [
+                'text-[#C9A063]/75 italic',
+                focused
+                  ? 'text-[#E8B567] bg-[#E8B567]/[0.08] border-[#E8B567]/55 shadow-[0_0_20px_-6px_#E8B567] scale-[1.02]'
+                  : 'border-transparent',
+              ].join(' ')
+            : [
+                focused
+                  ? 'text-white bg-[#E8B567]/[0.08] border-[#E8B567]/55 shadow-[0_0_20px_-6px_#E8B567] scale-[1.02]'
+                  : 'text-white/55 hover:text-white/85 border-transparent',
+              ].join(' '),
       ].join(' ')}
     >
       {/* Aurora bullet — amber if active, ghost if not */}
@@ -150,8 +158,60 @@ function SidebarItem({
   );
 }
 
+// ─── Home Back Button ─────────────────────────────────────────────────────────
+
+function HomeBackButton() {
+  const navigate = useUIStore((s) => s.navigate);
+  const { ref, focused } = useFocusable({
+    focusKey: 'sidebar-home-btn',
+    onEnterPress: () => navigate('home'),
+    onArrowPress: (dir) => {
+      if (dir === 'up') {
+        // üst sınır — hareket yok
+        return false;
+      }
+      return true; // diğer yönler spatial nav'a bırak
+    },
+  });
+
+  return (
+    <button
+      ref={ref as React.RefObject<HTMLButtonElement>}
+      aria-label="Anasayfaya dön"
+      onClick={() => navigate('home')}
+      className={[
+        'group flex items-center gap-3 w-full px-3 h-12 mb-3 rounded-full border transition-all',
+        focused
+          ? 'text-[#E8B567] border-[#E8B567]/55 bg-[#E8B567]/[0.08] shadow-[0_0_24px_-8px_#E8B567] scale-[1.02]'
+          : 'border-white/[0.08] bg-white/[0.02] text-white/65 hover:text-white hover:border-white/20 hover:bg-white/[0.04]',
+      ].join(' ')}
+    >
+      <span className={[
+        'grid place-items-center w-7 h-7 rounded-full border',
+        focused ? 'border-[#E8B567]/55' : 'border-white/15 group-hover:border-white/35',
+      ].join(' ')}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+          strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+      </span>
+      <span className="font-serif italic text-[15px] font-light tracking-wide flex-1 text-left">
+        Anasayfa
+      </span>
+      <span className={[
+        'text-[10px] uppercase tracking-[0.3em] font-semibold',
+        focused ? 'text-[#E8B567]/70' : 'text-white/35',
+      ].join(' ')}>
+        OK
+      </span>
+    </button>
+  );
+}
+
 export function CategorySidebar() {
-  const categories = usePlaylistStore((s) => s.categories);
+  const allCategories = usePlaylistStore((s) => s.categories);
+  const hiddenCategories = usePlaylistStore((s) => s.hiddenCategories);
+  const categories = allCategories.filter((c) => !hiddenCategories.has(c.name));
   const activeCategory = usePlaylistStore((s) => s.activeCategory);
   const activeSourceFilter = usePlaylistStore((s) => s.activeSourceFilter);
   const favoriteIds = usePlaylistStore((s) => s.favoriteIds);
@@ -207,7 +267,9 @@ export function CategorySidebar() {
   // Index-tabanlı focusKey'ler: kategori adı boşluk/özel karakter içerebilir,
   // norigin'de key olarak kullanıldığında setFocus sessizce fail eder.
   // sidebar-cat-0, sidebar-cat-1, … formatı güvenli ve tutarlı.
-  const allFocusKeys: string[] = ['sidebar-all'];
+  // sidebar-home-btn listenin tepesinde — özel buton, SidebarItem değil,
+  // ama focus navigasyon zincirinde ilk sıra
+  const allFocusKeys: string[] = ['sidebar-home-btn', 'sidebar-all'];
   if (favoriteIds.length > 0) allFocusKeys.push('sidebar-favorites');
   if (recentIds.length > 0) allFocusKeys.push('sidebar-recent');
   for (let i = 0; i < categories.length; i++) allFocusKeys.push(`sidebar-cat-${i + 1}`);
@@ -233,6 +295,9 @@ export function CategorySidebar() {
         ref={containerRef as React.RefObject<HTMLDivElement>}
         className="w-full h-full flex flex-col gap-0.5 py-2 pr-2 overflow-y-auto"
       >
+        {/* Anasayfa geri butonu — listenin tepesinde */}
+        <HomeBackButton />
+
         <SidebarItem
           focusKey="sidebar-all"
           label="Tümü"

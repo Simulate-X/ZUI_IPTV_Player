@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type Screen = 'loading' | 'onboarding' | 'channelList' | 'epg' | 'settings' | 'player';
+export type Screen = 'loading' | 'onboarding' | 'home' | 'channelList' | 'epg' | 'settings' | 'player';
 
 type UIStore = {
   currentScreen: Screen;

@@ -40,19 +40,13 @@ export function ChannelRow({ channel, onSelect, onFocus, onToggleFavorite }: Pro
       ref={ref as React.RefObject<HTMLDivElement>}
       onClick={onSelect}
       className={[
-        // Aurora: editorial row with border-b, amber accent bar on focus
         'group relative flex items-center gap-4 py-3.5 pl-4 pr-3',
-        'border-b border-border-subtle last:border-0',
-        'cursor-pointer transition-colors duration-150',
+        'rounded-xl cursor-pointer transition-all duration-150',
         focused
-          ? 'bg-accent/[0.06] text-white scale-[1.005]'
-          : 'text-white/85 hover:text-white',
+          ? 'bg-[#E8B567]/[0.08] border border-[#E8B567]/55 text-white scale-[1.015] shadow-[0_0_28px_-8px_#E8B567]'
+          : 'border border-transparent border-b-white/[0.05] text-white/85 hover:text-white',
       ].join(' ')}
     >
-      {/* Left amber accent bar — only on focus */}
-      {focused && (
-        <span className="absolute left-0 top-2 bottom-2 w-[2px] bg-accent rounded-r shadow-accent-bar" />
-      )}
 
       {/* Round logo avatar */}
       <div className="w-9 h-9 rounded-full flex-shrink-0 bg-bg-elevated flex items-center justify-center overflow-hidden">

@@ -41,13 +41,26 @@ export function ChannelList() {
     if (channelsLength === 0) return;
 
     const timeoutId = setTimeout(() => {
+      const isVirtualized = channelsLength >= 100; // matches VIRTUALIZATION_THRESHOLD
+
       if (
         lastFocusedChannelId?.includes(':') &&
         visibleChannels.some((c) => c.id === lastFocusedChannelId)
       ) {
-        setFocus(`channel-${lastFocusedChannelId}`);
+        if (isVirtualized) {
+          // Virtualized: focus container, set channel via state
+          handleChannelFocus(lastFocusedChannelId);
+          setFocus('CHANNEL_LIST_VIRTUAL');
+        } else {
+          setFocus(`channel-${lastFocusedChannelId}`);
+        }
       } else if (firstChannelId) {
-        setFocus(`channel-${firstChannelId}`);
+        if (isVirtualized) {
+          handleChannelFocus(firstChannelId);
+          setFocus('CHANNEL_LIST_VIRTUAL');
+        } else {
+          setFocus(`channel-${firstChannelId}`);
+        }
       } else {
         setFocus('sidebar-all');
       }
@@ -110,6 +123,7 @@ export function ChannelList() {
           onSelectChannel={(id) => void handleSelectChannel(id)}
           onFocusChannel={handleChannelFocus}
           onToggleFavorite={handleToggleFavorite}
+          focusedChannelId={focusedChannelId}
         />
         <PreviewPane focusedChannelId={focusedChannelId} />
       </div>
@@ -126,7 +140,12 @@ export function ChannelList() {
               const s = usePlaylistStore.getState();
               if (s.visibleChannels.length > 0) {
                 const firstId = s.visibleChannels[0].id;
-                setFocus(`channel-${firstId}`);
+                if (s.visibleChannels.length >= 100) {
+                  handleChannelFocus(firstId);
+                  setFocus('CHANNEL_LIST_VIRTUAL');
+                } else {
+                  setFocus(`channel-${firstId}`);
+                }
               }
             }, 50);
           }}
