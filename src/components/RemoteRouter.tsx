@@ -21,15 +21,22 @@ export function RemoteRouter() {
         }
         switch (currentScreen) {
           case 'player':
+            // Oynatıcıdan çık → son ana ekran (Live TV / EPG)
             navigate(useUIStore.getState().lastMainScreen);
             break;
           case 'channelList':
           case 'epg':
           case 'settings':
-          case 'onboarding':
+            // Alt sayfalardan BACK → Anasayfa
+            navigate('home');
+            break;
+          case 'home':
+            // Anasayfadan BACK → çıkış onayı
             openModal('exit');
             break;
+          case 'onboarding':
           case 'loading':
+            // Onboarding / yükleme ekranında BACK engelle
             break;
         }
         return;
