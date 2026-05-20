@@ -96,6 +96,29 @@ export default function App() {
     focusKey: 'APP_SHELL',
     focusable: false,
   });
+
+  // Modal kapatıldıktan sonra alttaki ekrana focus geri ver.
+  // closeModal() → modal unmount → norigin focus boşa düşer.
+  // setTimeout(0): bir sonraki tick'te modal DOM'dan kalkmış olur, setNavFocus güvenle çalışır.
+  const handleCloseModal = () => {
+    closeModal();
+    setTimeout(() => {
+      const currentScreen = useUIStore.getState().currentScreen;
+      if (currentScreen === 'home') {
+        const lastId = usePlaylistStore.getState().lastFocusedChannelId;
+        setNavFocus(lastId ? 'home-resume-continue' : 'home-section-0');
+      } else if (currentScreen === 'channelList') {
+        const s = usePlaylistStore.getState();
+        const lastId = s.lastFocusedChannelId;
+        if (lastId && s.visibleChannels.some((c) => c.id === lastId)) {
+          setNavFocus(`channel-${lastId}`);
+        } else if (s.visibleChannels.length > 0) {
+          setNavFocus(`channel-${s.visibleChannels[0].id}`);
+        }
+      }
+      // settings / epg — isFocusBoundary ile kendi focus'larını yönetir
+    }, 0);
+  };
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       // getCurrentFocusKey() returns null at runtime when nothing focused yet
@@ -164,7 +187,7 @@ export default function App() {
           confirmLabel="Evet, çık"
           cancelLabel="İptal"
           onConfirm={() => window.close()}
-          onCancel={closeModal}
+          onCancel={handleCloseModal}
         />
       )}
     </div>
