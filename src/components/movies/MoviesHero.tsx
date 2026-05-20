@@ -52,60 +52,58 @@ export function MoviesHero({ movie }: Props) {
       <div className="absolute inset-0 bg-gradient-to-t from-[#0e0b0a] via-transparent to-transparent" />
       <div className="absolute inset-0 opacity-[0.04] mix-blend-overlay [background-image:radial-gradient(rgba(255,255,255,0.6)_1px,transparent_1px)] [background-size:3px_3px] pointer-events-none" />
 
-      <div className="relative z-10 grid grid-cols-[1fr_180px] gap-6 h-full px-8 pt-5 pb-5">
-        <div className="flex flex-col justify-end gap-3 max-w-[640px] min-w-0">
-          {/* Eyebrow */}
-          <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.35em] text-[#E8B567]/85 font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#E8B567] shadow-[0_0_10px_#E8B567]" />
-            {movie.continueFrom ? 'Kaldığın Yer' : movie.isNew ? 'Yeni Eklendi' : 'Öne Çıkan'}
-            <span className="w-12 h-px bg-[#E8B567]/40" />
+      {/* Content: padded inset, flex-col justify between top eyebrow and bottom CTAs */}
+      <div className="relative z-10 grid grid-cols-[1fr_180px] gap-6 h-full px-8 pt-6 pb-6">
+        <div className="flex flex-col justify-between max-w-[640px] min-w-0">
+
+          {/* Top block: eyebrow + title + meta */}
+          <div className="flex flex-col gap-2">
+            {/* Eyebrow */}
+            <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.35em] text-[#E8B567]/85 font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#E8B567] shadow-[0_0_10px_#E8B567]" />
+              {movie.continueFrom ? 'Kaldığın Yer' : movie.isNew ? 'Yeni Eklendi' : 'Öne Çıkan'}
+              <span className="w-12 h-px bg-[#E8B567]/40" />
+            </div>
+
+            {/* Title */}
+            <h1 className="font-serif text-[42px] font-light tracking-tight text-white leading-[1] line-clamp-2">
+              {movie.title}
+            </h1>
+
+            {/* Meta row */}
+            <div className="flex items-center gap-2 text-[12px] text-white/65 tracking-wide flex-wrap">
+              <span className="flex items-center gap-1.5 text-[#E8B567] font-semibold tabular-nums">
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                {movie.rating.toFixed(1)}
+              </span>
+              <span className="w-1 h-1 rounded-full bg-white/30" />
+              <span>{movie.year}</span>
+              {movie.runtime && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-white/30" />
+                  <span>{movie.runtime}</span>
+                </>
+              )}
+              {movie.genre && (
+                <span className="px-2 py-0.5 rounded-md border border-white/15 text-[10px] uppercase tracking-[0.25em] text-white/75 font-semibold">
+                  {movie.genre}
+                </span>
+              )}
+              {tags.map(t => (
+                <span
+                  key={t}
+                  className="px-2 py-0.5 rounded-md border border-white/15 text-[10px] uppercase tracking-[0.25em] text-white/75 font-semibold"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
           </div>
 
-          {/* Title */}
-          <h1 className="font-serif text-[48px] font-light tracking-tight text-white leading-[0.95]">
-            {movie.title}
-          </h1>
-
-          {/* Meta row */}
-          <div className="flex items-center gap-2.5 text-[13px] text-white/65 tracking-wide flex-wrap">
-            <span className="flex items-center gap-1.5 text-[#E8B567] font-semibold tabular-nums">
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
-              {movie.rating.toFixed(1)}
-            </span>
-            <span className="w-1 h-1 rounded-full bg-white/30" />
-            <span>{movie.year}</span>
-            {movie.runtime && (
-              <>
-                <span className="w-1 h-1 rounded-full bg-white/30" />
-                <span>{movie.runtime}</span>
-              </>
-            )}
-            {movie.genre && (
-              <span className="px-2 py-0.5 rounded-md border border-white/15 text-[10px] uppercase tracking-[0.25em] text-white/75 font-semibold">
-                {movie.genre}
-              </span>
-            )}
-            {tags.map(t => (
-              <span
-                key={t}
-                className="px-2 py-0.5 rounded-md border border-white/15 text-[10px] uppercase tracking-[0.25em] text-white/75 font-semibold"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-
-          {/* Synopsis */}
-          {movie.synopsis && (
-            <p className="font-serif italic text-[14px] font-light text-white/65 leading-snug line-clamp-2 max-w-[600px]">
-              {movie.synopsis}
-            </p>
-          )}
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-2.5 mt-1">
+          {/* Bottom block: CTA buttons */}
+          <div className="flex items-center gap-2.5">
             <button
               ref={playRef as React.RefObject<HTMLButtonElement>}
               onClick={() => playMovie(movie.id)}

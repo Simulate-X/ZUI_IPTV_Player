@@ -128,20 +128,28 @@ function CategoryRow({
       onClick={() => setActiveCategory(category.id)}
       className={[
         'group flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer text-[14px] tracking-wide transition-all',
-        isActive
-          ? 'relative border border-[#E8B567]/40 bg-[#E8B567]/[0.06] text-[#E8B567] font-semibold'
+        // Active = white border (NOT amber — amber is exclusive to focus)
+        // Focused = amber border + glow + scale
+        isActive && !focused
+          ? 'relative border border-white/[0.20] bg-white/[0.05] text-white font-semibold'
           : focused
-            ? 'border border-[#E8B567]/55 bg-[#E8B567]/[0.08] text-white shadow-[0_0_20px_-6px_#E8B567] scale-[1.02]'
+            ? 'relative border border-[#E8B567]/55 bg-[#E8B567]/[0.08] text-[#E8B567] shadow-[0_0_20px_-6px_#E8B567] scale-[1.02]'
             : 'border border-transparent text-white/55 hover:text-white/85',
       ].join(' ')}
     >
-      {isActive && (
-        <span className="absolute left-0 top-2 bottom-2 w-[2px] bg-[#E8B567] rounded-r shadow-[0_0_12px_#E8B567]" />
+      {/* Left accent bar — amber for both active and focused */}
+      {(isActive || focused) && (
+        <span className={[
+          'absolute left-0 top-2 bottom-2 w-[2px] rounded-r',
+          focused
+            ? 'bg-[#E8B567] shadow-[0_0_12px_#E8B567]'
+            : 'bg-white/40',
+        ].join(' ')} />
       )}
       <span
         className={[
           'w-1.5 h-1.5 rounded-full shrink-0',
-          isActive ? 'bg-[#E8B567] shadow-[0_0_8px_#E8B567]' : 'bg-white/15',
+          isActive ? 'bg-[#E8B567]/70' : 'bg-white/15',
         ].join(' ')}
       />
       <span className={`flex-1 truncate ${showLabelUpper ? 'uppercase tracking-wider text-[12px]' : ''}`}>
@@ -150,7 +158,7 @@ function CategoryRow({
       <span
         className={[
           'font-serif text-[13px] font-light tabular-nums shrink-0',
-          isActive ? 'text-[#E8B567]' : 'text-white/35 group-hover:text-white/55',
+          isActive ? 'text-white/70' : 'text-white/35 group-hover:text-white/55',
         ].join(' ')}
       >
         {category.count}
