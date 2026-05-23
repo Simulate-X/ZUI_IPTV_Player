@@ -115,6 +115,7 @@
     "reason_format": "Provider'ın URL formatı bu TV tarafından desteklenmiyor",
     "tried_combinations": "Denenen kombinasyonlar ({{count}})",
     "retry": "Tekrar dene",
+    "stream_error": "Stream oynatılamadı ({{count}} deneme başarısız)",
     "sub_on": "açık",
     "sub_off": "kapalı"
   },

@@ -115,6 +115,7 @@
     "reason_format": "Provider's URL format is not supported by this TV",
     "tried_combinations": "Tried combinations ({{count}})",
     "retry": "Try again",
+    "stream_error": "Stream failed ({{count}} attempt(s) exhausted)",
     "sub_on": "on",
     "sub_off": "off"
   },

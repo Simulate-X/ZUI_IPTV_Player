@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import i18n from '@/i18n';
 import { getStrategiesForUrl } from '@/services/player.service';
 import { usePlayerStore } from '@/state/playerStore';
 import type { PlayerStrategy } from '@/services/playerStrategies/PlayerStrategy';
@@ -134,7 +135,7 @@ export function usePlayer(
       if (aborted) return;
 
       if (!succeeded) {
-        const message = `Stream oynatılamadı (${attempts.length} deneme başarısız)`;
+        const message = i18n.t('player.stream_error', { count: attempts.length });
         console.warn('[player] All strategies exhausted:', attempts);
         setState('error');
         onFatalError(message, attempts);

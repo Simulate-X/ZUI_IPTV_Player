@@ -115,6 +115,7 @@
     "reason_format": "URL-Format des Providers wird von diesem TV nicht unterstützt",
     "tried_combinations": "Versuchte Kombinationen ({{count}})",
     "retry": "Erneut versuchen",
+    "stream_error": "Stream fehlgeschlagen ({{count}} Versuche erschöpft)",
     "sub_on": "ein",
     "sub_off": "aus"
   },

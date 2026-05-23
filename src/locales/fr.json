@@ -115,6 +115,7 @@
     "reason_format": "Le format d'URL du fournisseur n'est pas pris en charge par ce téléviseur",
     "tried_combinations": "Combinaisons essayées ({{count}})",
     "retry": "Réessayer",
+    "stream_error": "Échec du flux ({{count}} tentative(s) épuisée(s))",
     "sub_on": "actif",
     "sub_off": "inactif"
   },

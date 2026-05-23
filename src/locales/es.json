@@ -115,6 +115,7 @@
     "reason_format": "El formato de URL del proveedor no es compatible con este TV",
     "tried_combinations": "Combinaciones probadas ({{count}})",
     "retry": "Intentar de nuevo",
+    "stream_error": "Error de stream ({{count}} intento(s) agotado(s))",
     "sub_on": "activo",
     "sub_off": "inactivo"
   },
