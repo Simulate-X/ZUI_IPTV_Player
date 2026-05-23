@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 import { usePlayerStore } from '@/state/playerStore';
 import { useSettingsStore, LANGUAGE_LOCALES } from '@/state/settingsStore';
+import { useToast } from '@/components/ui/Toast';
 
 // ─── Clock ───────────────────────────────────────────────────────────────────
 
@@ -49,18 +50,25 @@ function formatTime(seconds: number): string {
 
 function SubtitleToggleOSDBtn() {
   const { t } = useTranslation();
+  const showToast          = useToast(s => s.show);
   const subtitleEnabled    = useSettingsStore(s => s.subtitleEnabled);
   const setSubtitleEnabled = useSettingsStore(s => s.setSubtitleEnabled);
 
+  const toggle = () => {
+    const next = !subtitleEnabled;
+    setSubtitleEnabled(next);
+    showToast(next ? `🔤 ${t('player.sub_on')}` : `✕ ${t('player.sub_off')}`);
+  };
+
   const { ref, focused } = useFocusable({
     focusKey: 'OSD_SUBTITLE',
-    onEnterPress: () => setSubtitleEnabled(!subtitleEnabled),
+    onEnterPress: toggle,
   });
 
   return (
     <button
       ref={ref as React.RefObject<HTMLButtonElement>}
-      onClick={() => setSubtitleEnabled(!subtitleEnabled)}
+      onClick={toggle}
       className="flex flex-col items-center gap-1 transition-colors group"
     >
       <div className={[

@@ -243,16 +243,23 @@ export const useMoviesStore = create<MoviesStore>()(
         const creds = getXtreamCreds();
         if (!creds) return;
 
-        const url = buildVodUrl(
-          creds,
-          movie.streamId ?? parseInt(id, 10),
-          movie.containerExtension ?? 'mp4'
-        );
+        const streamId = movie.streamId ?? parseInt(id, 10);
+        const ext      = movie.containerExtension ?? 'mp4';
+        const url      = buildVodUrl(creds, streamId, ext);
+
+        // Fallback candidate list:
+        // 1. Native format (mp4/mkv/…) → NativeStrategy
+        // 2. HLS variant (.m3u8)  → NativeStrategy (Safari/webOS) + HLSStrategy (hls.js)
+        //    Many Xtream providers expose /movie/…/id.m3u8 as an HLS wrapper.
+        //    This helps when the native codec (e.g. H.265 in MKV) is unsupported.
+        const hlsUrl = buildVodUrl(creds, streamId, 'm3u8');
+        const candidates = ext !== 'm3u8' ? [hlsUrl] : [];
 
         usePlayerStore.getState().setSource({
           id: `vod-${id}`,
           name: movie.title,
           url,
+          streamUrlCandidates: candidates,
           sourceType: 'xtream',
         });
         useUIStore.getState().navigate('player');

@@ -75,10 +75,20 @@ export function buildVodUrl(
   let host = creds.host.trim().replace(/\/$/, '');
   let base = `${host}:${creds.port}`;
 
+  // Port logic mirrors buildApiUrl / buildSeriesEpisodeUrl for consistency.
   try {
     const parsed = new URL(host);
-    parsed.port = creds.port.toString();
-    base = parsed.origin;
+    if (
+      parsed.port ||
+      (creds.port === 80  && parsed.protocol === 'http:') ||
+      (creds.port === 443 && parsed.protocol === 'https:')
+    ) {
+      if (!parsed.port) parsed.port = creds.port.toString();
+      base = parsed.origin;
+    } else {
+      parsed.port = creds.port.toString();
+      base = parsed.origin;
+    }
   } catch {
     if (!host.match(/:\d+$/)) base = `${host}:${creds.port}`;
     else base = host;
