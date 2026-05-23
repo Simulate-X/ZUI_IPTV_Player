@@ -114,7 +114,9 @@
     "reason_network": "Ağ erişim engeli (geo-block, firewall)",
     "reason_format": "Provider'ın URL formatı bu TV tarafından desteklenmiyor",
     "tried_combinations": "Denenen kombinasyonlar ({{count}})",
-    "retry": "Tekrar dene"
+    "retry": "Tekrar dene",
+    "sub_on": "açık",
+    "sub_off": "kapalı"
   },
   "channel_list": {
     "all": "Tümü",

@@ -114,7 +114,9 @@
     "reason_network": "Accès réseau bloqué (géo-blocage, pare-feu)",
     "reason_format": "Le format d'URL du fournisseur n'est pas pris en charge par ce téléviseur",
     "tried_combinations": "Combinaisons essayées ({{count}})",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "sub_on": "actif",
+    "sub_off": "inactif"
   },
   "channel_list": {
     "all": "Tout",

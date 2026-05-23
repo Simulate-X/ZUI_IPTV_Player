@@ -65,11 +65,17 @@ export class NativeStrategy implements PlayerStrategy {
       let settled = false;
 
       // ─── Attach-phase handlers ────────────────────────────────────────────────
-      const onPlaying = () => {
+      // D-VOD: accept 'canplay' AND 'playing' as success signals.
+      // 'canplay' fires as soon as the browser has enough data to begin playback —
+      // this prevents an 8-second timeout on VOD content where autoplay is blocked
+      // or the first 'playing' event is delayed. 'playing' remains as a secondary
+      // signal for cases where 'canplay' is suppressed by the browser.
+      const onSuccess = () => {
         if (settled) return;
         settled = true;
         clearTimeout(timeoutId);
-        video.removeEventListener('playing', onPlaying);
+        video.removeEventListener('canplay', onSuccess);
+        video.removeEventListener('playing', onSuccess);
         video.removeEventListener('error', onAttachError);
         this.cleanupAttach = null;
 
@@ -85,7 +91,8 @@ export class NativeStrategy implements PlayerStrategy {
         if (settled) return;
         settled = true;
         clearTimeout(timeoutId);
-        video.removeEventListener('playing', onPlaying);
+        video.removeEventListener('canplay', onSuccess);
+        video.removeEventListener('playing', onSuccess);
         video.removeEventListener('error', onAttachError);
         this.cleanupAttach = null;
         reject(new Error(this.buildErrorMessage(video)));
@@ -95,7 +102,8 @@ export class NativeStrategy implements PlayerStrategy {
         if (settled) return;
         settled = true;
         clearTimeout(timeoutId);
-        video.removeEventListener('playing', onPlaying);
+        video.removeEventListener('canplay', onSuccess);
+        video.removeEventListener('playing', onSuccess);
         video.removeEventListener('error', onAttachError);
         this.cleanupAttach = null;
       };
@@ -106,15 +114,17 @@ export class NativeStrategy implements PlayerStrategy {
         reject(new Error(`Native playback timeout (${ATTACH_TIMEOUT_MS / 1000}s)`));
       }, ATTACH_TIMEOUT_MS);
 
-      video.addEventListener('playing', onPlaying);
+      video.addEventListener('canplay', onSuccess);
+      video.addEventListener('playing', onSuccess);
       video.addEventListener('error', onAttachError);
 
       // Assign src and trigger load + play
       video.src = url;
       video.load();
       video.play().catch(() => {
-        // Autoplay may be blocked — not fatal, the 'playing' event will still fire
-        // once the browser allows playback.
+        // Autoplay may be blocked — not fatal.
+        // 'canplay' will still fire once sufficient data is buffered;
+        // 'playing' fires once the browser grants playback permission.
       });
     });
   }

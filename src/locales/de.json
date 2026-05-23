@@ -114,7 +114,9 @@
     "reason_network": "Netzwerkzugriff blockiert (Geo-Block, Firewall)",
     "reason_format": "URL-Format des Providers wird von diesem TV nicht unterstützt",
     "tried_combinations": "Versuchte Kombinationen ({{count}})",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "sub_on": "ein",
+    "sub_off": "aus"
   },
   "channel_list": {
     "all": "Alle",

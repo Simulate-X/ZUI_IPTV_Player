@@ -4,6 +4,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 import { usePlayerStore } from '@/state/playerStore';
 import { useSettingsStore, LANGUAGE_LOCALES } from '@/state/settingsStore';
 
@@ -42,6 +43,60 @@ function formatTime(seconds: number): string {
     return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
   }
   return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+
+// ─── Subtitle quick-toggle (CC button) ───────────────────────────────────────
+
+function SubtitleToggleOSDBtn() {
+  const { t } = useTranslation();
+  const subtitleEnabled    = useSettingsStore(s => s.subtitleEnabled);
+  const setSubtitleEnabled = useSettingsStore(s => s.setSubtitleEnabled);
+
+  const { ref, focused } = useFocusable({
+    focusKey: 'OSD_SUBTITLE',
+    onEnterPress: () => setSubtitleEnabled(!subtitleEnabled),
+  });
+
+  return (
+    <button
+      ref={ref as React.RefObject<HTMLButtonElement>}
+      onClick={() => setSubtitleEnabled(!subtitleEnabled)}
+      className="flex flex-col items-center gap-1 transition-colors group"
+    >
+      <div className={[
+        'w-11 h-11 rounded-full border grid place-items-center transition-all',
+        focused
+          ? 'border-[#E8B567]/60 bg-[#E8B567]/10 shadow-[0_0_24px_-6px_#E8B567]'
+          : subtitleEnabled
+            ? 'border-[#E8B567]/40'
+            : 'border-white/20',
+      ].join(' ')}>
+        {/* Closed-caption icon */}
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={[
+            'w-5 h-5 transition-colors',
+            focused || subtitleEnabled ? 'text-[#E8B567]' : 'text-white/50',
+          ].join(' ')}
+        >
+          <rect x="2" y="5" width="20" height="14" rx="2" />
+          <path d="M7 12H6a2 2 0 000 4h1" />
+          <path d="M14 12h-1a2 2 0 000 4h1" />
+        </svg>
+      </div>
+      <span className={[
+        'text-[9px] uppercase tracking-[0.2em] font-semibold',
+        focused || subtitleEnabled ? 'text-[#E8B567]' : 'text-white/40',
+      ].join(' ')}>
+        {subtitleEnabled ? t('player.sub_on') : t('player.sub_off')}
+      </span>
+    </button>
+  );
 }
 
 // ─── Bottom controls bar (VOD) ───────────────────────────────────────────────
@@ -111,8 +166,8 @@ function BottomControls({ videoRef }: ControlsProps) {
         </div>
       )}
 
-      {/* Controls row */}
-      <div className="flex items-center justify-center gap-6">
+      {/* Controls row — subtitle CC button is anchored to the right edge */}
+      <div className="relative flex items-center justify-center gap-6">
         {/* Rewind 10s */}
         {!isLive && (
           <button
@@ -165,6 +220,11 @@ function BottomControls({ videoRef }: ControlsProps) {
             <span className="text-[9px] uppercase tracking-[0.2em] font-semibold">+10s</span>
           </button>
         )}
+
+        {/* Subtitle (CC) quick-toggle — right edge, visible on all content types */}
+        <div className="absolute right-0">
+          <SubtitleToggleOSDBtn />
+        </div>
       </div>
 
       {/* Live badge */}

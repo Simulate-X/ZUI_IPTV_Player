@@ -114,7 +114,9 @@
     "reason_network": "Network access blocked (geo-block, firewall)",
     "reason_format": "Provider's URL format is not supported by this TV",
     "tried_combinations": "Tried combinations ({{count}})",
-    "retry": "Try again"
+    "retry": "Try again",
+    "sub_on": "on",
+    "sub_off": "off"
   },
   "channel_list": {
     "all": "All",
