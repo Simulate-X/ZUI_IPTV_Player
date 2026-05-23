@@ -281,6 +281,60 @@ function ModalCloseBtn({ focusKey: btnKey, onPress, label = 'Kapat' }: { focusKe
   );
 }
 
+// ─── Focusable checkbox row (kategori gizle modalleri) ───────────────────────
+
+function CheckItem({
+  focusKey: itemKey, label, count, checked, isLast, onToggle,
+}: {
+  focusKey: string; label: string; count?: number;
+  checked: boolean; isLast: boolean; onToggle: () => void;
+}) {
+  const { ref, focused, setFocus } = useFocusable({
+    focusKey: itemKey,
+    onEnterPress: onToggle,
+    onArrowPress: (dir) => {
+      // Son satırdan DOWN → Kapat butonuna — focusKey convention: modalKey + '-close'
+      // Her modal kendi closeKey'ini geçemez, bu yüzden suffix pattern kullanıyoruz.
+      // Aşağıdaki mantık: isLast ise DOWN'u tüket; parent ModalBase isFocusBoundary
+      // sayesinde focus sızmaz zaten, ama explicit route daha güvenli.
+      if (dir === 'down' && isLast) {
+        // focusKey'in prefix'ini çözümle: "hide-cat-item-X" → "hide-cat-close"
+        const closeKey = itemKey.replace(/-item-.*$/, '-close');
+        setFocus(closeKey);
+        return false;
+      }
+      return true;
+    },
+  });
+
+  return (
+    <button
+      ref={ref as React.RefObject<HTMLButtonElement>}
+      onClick={onToggle}
+      className={[
+        'flex items-center gap-4 px-3 py-2.5 rounded-xl text-left w-full transition-all',
+        focused ? 'bg-white/[0.07] outline outline-2 outline-white/20 outline-offset-[-2px]' : 'hover:bg-white/[0.04]',
+      ].join(' ')}
+    >
+      <span className={[
+        'w-4 h-4 shrink-0 rounded border-2 flex items-center justify-center transition-colors',
+        checked ? 'bg-[#E8B567] border-[#E8B567]' : 'border-white/30 bg-transparent',
+      ].join(' ')}>
+        {checked && (
+          <svg viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5"
+            strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
+            <path d="M2 6l3 3 5-5" />
+          </svg>
+        )}
+      </span>
+      <span className="flex-1 text-[16px] text-white/80">{label}</span>
+      {count !== undefined && (
+        <span className="font-serif text-[14px] font-light text-white/35 tabular-nums">{count}</span>
+      )}
+    </button>
+  );
+}
+
 // ─── Modal: Canlı Kategorileri Gizle ─────────────────────────────────────────
 
 function HideCategoriesModal({ onClose }: { onClose: () => void }) {
@@ -292,7 +346,7 @@ function HideCategoriesModal({ onClose }: { onClose: () => void }) {
   return (
     <ModalBase
       focusKey="HIDE_CAT_MODAL"
-      initialFocus="hide-cat-close"
+      initialFocus={allCategories.length > 0 ? 'hide-cat-item-0' : 'hide-cat-close'}
       title={t('modal.hide_categories.title')}
       onClose={onClose}
     >
@@ -300,24 +354,17 @@ function HideCategoriesModal({ onClose }: { onClose: () => void }) {
         {t('modal.hide_categories.description')}
       </p>
       <div className="flex-1 overflow-y-auto flex flex-col gap-1 pr-1 min-h-0">
-        {allCategories.map((cat) => {
-          const isHidden = hiddenCategories.has(cat.name);
-          return (
-            <label
-              key={cat.name}
-              className="flex items-center gap-4 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-white/[0.04] transition-colors"
-            >
-              <input
-                type="checkbox"
-                checked={isHidden}
-                onChange={() => void toggleHidden(cat.name)}
-                className="w-4 h-4 accent-[#E8B567] rounded"
-              />
-              <span className="flex-1 text-[16px] text-white/80">{cat.name}</span>
-              <span className="font-serif text-[14px] font-light text-white/35 tabular-nums">{cat.count}</span>
-            </label>
-          );
-        })}
+        {allCategories.map((cat, idx) => (
+          <CheckItem
+            key={cat.name}
+            focusKey={`hide-cat-item-${idx}`}
+            label={cat.name}
+            count={cat.count}
+            checked={hiddenCategories.has(cat.name)}
+            isLast={idx === allCategories.length - 1}
+            onToggle={() => void toggleHidden(cat.name)}
+          />
+        ))}
       </div>
       <div className="mt-6 flex justify-end">
         <ModalCloseBtn focusKey="hide-cat-close" onPress={onClose} />
@@ -341,7 +388,7 @@ function HideVodCategoriesModal({ onClose }: { onClose: () => void }) {
   return (
     <ModalBase
       focusKey="HIDE_VOD_CAT_MODAL"
-      initialFocus="hide-vod-cat-close"
+      initialFocus={regulars.length > 0 ? 'hide-vod-cat-item-0' : 'hide-vod-cat-close'}
       title={t('modal.hide_vod_categories.title')}
       onClose={onClose}
     >
@@ -354,24 +401,17 @@ function HideVodCategoriesModal({ onClose }: { onClose: () => void }) {
             {t('modal.hide_vod_categories.not_loaded')}
           </p>
         )}
-        {regulars.map((cat) => {
-          const isHidden = hiddenCategoryIds.includes(cat.id);
-          return (
-            <label
-              key={cat.id}
-              className="flex items-center gap-4 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-white/[0.04] transition-colors"
-            >
-              <input
-                type="checkbox"
-                checked={isHidden}
-                onChange={() => toggleHidden(cat.id)}
-                className="w-4 h-4 accent-[#E8B567] rounded"
-              />
-              <span className="flex-1 text-[16px] text-white/80">{cat.label}</span>
-              <span className="font-serif text-[14px] font-light text-white/35 tabular-nums">{cat.count}</span>
-            </label>
-          );
-        })}
+        {regulars.map((cat, idx) => (
+          <CheckItem
+            key={cat.id}
+            focusKey={`hide-vod-cat-item-${idx}`}
+            label={cat.label}
+            count={cat.count}
+            checked={hiddenCategoryIds.includes(cat.id)}
+            isLast={idx === regulars.length - 1}
+            onToggle={() => toggleHidden(cat.id)}
+          />
+        ))}
       </div>
       <div className="mt-6 flex justify-end">
         <ModalCloseBtn focusKey="hide-vod-cat-close" onPress={onClose} />
@@ -395,7 +435,7 @@ function HideSeriesCategoriesModal({ onClose }: { onClose: () => void }) {
   return (
     <ModalBase
       focusKey="HIDE_SERIES_CAT_MODAL"
-      initialFocus="hide-series-cat-close"
+      initialFocus={regulars.length > 0 ? 'hide-series-cat-item-0' : 'hide-series-cat-close'}
       title={t('modal.hide_series_categories.title')}
       onClose={onClose}
     >
@@ -408,24 +448,17 @@ function HideSeriesCategoriesModal({ onClose }: { onClose: () => void }) {
             {t('modal.hide_series_categories.not_loaded')}
           </p>
         )}
-        {regulars.map((cat) => {
-          const isHidden = hiddenCategoryIds.includes(cat.id);
-          return (
-            <label
-              key={cat.id}
-              className="flex items-center gap-4 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-white/[0.04] transition-colors"
-            >
-              <input
-                type="checkbox"
-                checked={isHidden}
-                onChange={() => toggleHidden(cat.id)}
-                className="w-4 h-4 accent-[#E8B567] rounded"
-              />
-              <span className="flex-1 text-[16px] text-white/80">{cat.label}</span>
-              <span className="font-serif text-[14px] font-light text-white/35 tabular-nums">{cat.count}</span>
-            </label>
-          );
-        })}
+        {regulars.map((cat, idx) => (
+          <CheckItem
+            key={cat.id}
+            focusKey={`hide-series-cat-item-${idx}`}
+            label={cat.label}
+            count={cat.count}
+            checked={hiddenCategoryIds.includes(cat.id)}
+            isLast={idx === regulars.length - 1}
+            onToggle={() => toggleHidden(cat.id)}
+          />
+        ))}
       </div>
       <div className="mt-6 flex justify-end">
         <ModalCloseBtn focusKey="hide-series-cat-close" onPress={onClose} />
@@ -444,6 +477,57 @@ const LANGUAGES: { code: Language; name: string; tag: string }[] = [
   { code: 'es', name: 'Español',  tag: 'ES' },
 ];
 
+// ─── Focusable language row ───────────────────────────────────────────────────
+
+function LangItem({
+  code, name, tag, isSelected, isLast, onSelect,
+}: {
+  code: string; name: string; tag: string;
+  isSelected: boolean; isLast: boolean;
+  onSelect: () => void;
+}) {
+  const { ref, focused, setFocus } = useFocusable({
+    focusKey: `lang-item-${code}`,
+    onEnterPress: onSelect,
+    onArrowPress: (dir) => {
+      // Son satırdan DOWN → Kapat butonuna
+      if (dir === 'down' && isLast) { setFocus('lang-modal-close'); return false; }
+      return true;
+    },
+  });
+
+  return (
+    <button
+      ref={ref as React.RefObject<HTMLButtonElement>}
+      onClick={onSelect}
+      className={[
+        'flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all w-full',
+        isSelected
+          ? 'bg-[#E8B567]/[0.12] border border-[#E8B567]/40 text-[#E8B567]'
+          : 'bg-white/[0.03] border border-white/[0.06] text-white/75',
+        focused && !isSelected ? 'outline outline-2 outline-white/30 outline-offset-[-2px] bg-white/[0.07] text-white' : '',
+        focused &&  isSelected ? 'outline outline-2 outline-[#E8B567]/60 outline-offset-[-2px]' : '',
+      ].join(' ')}
+    >
+      <span className={[
+        'shrink-0 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-1 rounded',
+        isSelected ? 'bg-[#E8B567]/20 text-[#E8B567]' : 'bg-white/[0.06] text-white/40',
+      ].join(' ')}>
+        {tag}
+      </span>
+      <span className="flex-1 text-[17px] font-medium">{name}</span>
+      {isSelected && (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+          strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 shrink-0">
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+// ─── Modal: Dil Seçimi ────────────────────────────────────────────────────────
+
 function LanguageModal({ onClose }: { onClose: () => void }) {
   const { t }   = useTranslation();
   const { language, setLanguage } = useSettingsStore();
@@ -451,40 +535,22 @@ function LanguageModal({ onClose }: { onClose: () => void }) {
   return (
     <ModalBase
       focusKey="LANGUAGE_MODAL"
-      initialFocus="lang-modal-close"
+      initialFocus={`lang-item-${language}`}
       title={t('modal.language.title')}
       onClose={onClose}
     >
       <div className="flex flex-col gap-2 mb-6">
-        {LANGUAGES.map((lang) => {
-          const isSelected = language === lang.code;
-          return (
-            <button
-              key={lang.code}
-              onClick={() => { setLanguage(lang.code); onClose(); }}
-              className={[
-                'flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all',
-                isSelected
-                  ? 'bg-[#E8B567]/[0.12] border border-[#E8B567]/40 text-[#E8B567]'
-                  : 'bg-white/[0.03] border border-white/[0.06] text-white/75 hover:bg-white/[0.06] hover:text-white',
-              ].join(' ')}
-            >
-              <span className={[
-                'shrink-0 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-1 rounded',
-                isSelected ? 'bg-[#E8B567]/20 text-[#E8B567]' : 'bg-white/[0.06] text-white/40',
-              ].join(' ')}>
-                {lang.tag}
-              </span>
-              <span className="flex-1 text-[17px] font-medium">{lang.name}</span>
-              {isSelected && (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-                  strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 shrink-0">
-                  <path d="M20 6 9 17l-5-5" />
-                </svg>
-              )}
-            </button>
-          );
-        })}
+        {LANGUAGES.map((lang, idx) => (
+          <LangItem
+            key={lang.code}
+            code={lang.code}
+            name={lang.name}
+            tag={lang.tag}
+            isSelected={language === lang.code}
+            isLast={idx === LANGUAGES.length - 1}
+            onSelect={() => { setLanguage(lang.code); onClose(); }}
+          />
+        ))}
       </div>
       <div className="flex justify-end">
         <ModalCloseBtn focusKey="lang-modal-close" onPress={onClose} label={t('modal.close')} />
@@ -516,7 +582,7 @@ function ParentalDetailModal({
   return (
     <ModalBase
       focusKey="PARENTAL_MODAL"
-      initialFocus="parental-close"
+      initialFocus={pinHash && allCategories.length > 0 ? 'parental-cat-item-0' : 'parental-close'}
       title={t('modal.parental.title')}
       onClose={onClose}
     >
@@ -561,20 +627,16 @@ function ParentalDetailModal({
       {pinHash && (
         <div className="flex-1 overflow-y-auto flex flex-col gap-1 pr-1 min-h-0">
           <p className="text-[10px] uppercase tracking-[0.3em] text-white/30 mb-2">{t('modal.parental.protected_categories')}</p>
-          {allCategories.map((cat) => (
-            <label
+          {allCategories.map((cat, idx) => (
+            <CheckItem
               key={cat.name}
-              className="flex items-center gap-4 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-white/[0.04] transition-colors"
-            >
-              <input
-                type="checkbox"
-                checked={protectedCategories.has(cat.name)}
-                onChange={() => void toggleProtected(cat.name)}
-                className="w-4 h-4 accent-[#E8B567]"
-              />
-              <span className="flex-1 text-[16px] text-white/80">{cat.name}</span>
-              <span className="font-serif text-[14px] font-light text-white/35 tabular-nums">{cat.count}</span>
-            </label>
+              focusKey={`parental-cat-item-${idx}`}
+              label={cat.name}
+              count={cat.count}
+              checked={protectedCategories.has(cat.name)}
+              isLast={idx === allCategories.length - 1}
+              onToggle={() => void toggleProtected(cat.name)}
+            />
           ))}
         </div>
       )}
