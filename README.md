@@ -21,6 +21,10 @@
 |--------------|----------|
 | ![Player](docs/screenshots/player.png) | ![Settings](docs/screenshots/settings.png) |
 
+**Cloud Sync Web Panel** — [zui-sync-web.vercel.app](https://zui-sync-web.vercel.app)
+
+![Cloud Sync Web](docs/screenshots/web.png)
+
 ---
 
 ## Features
