@@ -799,12 +799,12 @@ export function HomeScreen() {
 
   const { ref, focusKey, setFocus } = useFocusable({ focusKey: 'HOME_SCREEN' });
 
-  // D-033: smart initial focus
+  // D-033: initial focus — her zaman Live TV section kartı (home-section-0)
   useEffect(() => {
-    const initialKey = lastChannelId ? 'home-resume-continue' : 'home-section-0';
-    const id = setTimeout(() => setFocus(initialKey), 80);
+    const id = setTimeout(() => setFocus('home-section-0'), 80);
     return () => clearTimeout(id);
-  }, [setFocus, lastChannelId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <FocusContext.Provider value={focusKey}>
