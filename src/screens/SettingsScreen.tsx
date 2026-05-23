@@ -1047,6 +1047,14 @@ export function SettingsScreen() {
       badge: { label: t('settings.badge.on'), variant: 'on' },
       onPress: v2Stub,
     },
+    {
+      id: 'cloud-0',
+      icon: <IconCloud />,
+      title: t('settings.cloud_sync.title'),
+      subtitle: getSupabaseConfig() ? t('settings.cloud_sync.configured') : t('settings.cloud_sync.not_configured'),
+      badge: { label: getSupabaseConfig() ? t('settings.badge.on') : t('settings.badge.off'), variant: getSupabaseConfig() ? 'on' : 'off' },
+      onPress: () => setModal('cloud-sync'),
+    },
   ];
 
   return (
@@ -1121,10 +1129,10 @@ export function SettingsScreen() {
           </div>
         </div>
 
-        {/* ─── Biçim & Oynatma ─────────────────────────────────────────────── */}
+        {/* ─── Biçim & Oynatma + Cloud Sync (3'lü satır) ───────────────────── */}
         <div className="mt-10">
           <SectionHeader label={t('settings.sections.format')} />
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-3 gap-5">
             {formatCards.map((card) => (
               <SettingsCard
                 key={card.id}
@@ -1136,21 +1144,6 @@ export function SettingsScreen() {
                 onEnterPress={card.onPress}
               />
             ))}
-          </div>
-        </div>
-
-        {/* ─── Cloud Sync ───────────────────────────────────────────────────── */}
-        <div className="mt-10">
-          <SectionHeader label={t('settings.sections.cloud')} />
-          <div className="grid grid-cols-4 gap-5">
-            <SettingsCard
-              focusKey="settings-card-cloud-0"
-              icon={<IconCloud />}
-              title={t('settings.cloud_sync.title')}
-              subtitle={getSupabaseConfig() ? t('settings.cloud_sync.configured') : t('settings.cloud_sync.not_configured')}
-              badge={{ label: getSupabaseConfig() ? t('settings.badge.on') : t('settings.badge.off'), variant: getSupabaseConfig() ? 'on' : 'off' }}
-              onEnterPress={() => setModal('cloud-sync')}
-            />
           </div>
         </div>
 
