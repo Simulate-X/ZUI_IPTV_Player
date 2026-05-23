@@ -113,7 +113,8 @@
     "reason_stream_closed": "El stream del proveedor está temporalmente fuera de línea",
     "reason_network": "Acceso de red bloqueado (geo-bloqueo, firewall)",
     "reason_format": "El formato de URL del proveedor no es compatible con este TV",
-    "tried_combinations": "Combinaciones probadas ({{count}})"
+    "tried_combinations": "Combinaciones probadas ({{count}})",
+    "retry": "Intentar de nuevo"
   },
   "channel_list": {
     "all": "Todo",
@@ -222,7 +223,15 @@
     },
     "subtitle_settings": {
       "title": "Ajustes de subtítulos",
-      "subtitle": "Español · Medio"
+      "subtitle_on": "Activado · {{size}}",
+      "subtitle_off": "Desactivado",
+      "section_display": "Visualización",
+      "toggle_on": "Activado",
+      "toggle_off": "Desactivado",
+      "section_size": "Tamaño de fuente",
+      "size_small": "Pequeño",
+      "size_medium": "Mediano",
+      "size_large": "Grande"
     },
     "hide_live": {
       "title": "Ocultar categorías en vivo",

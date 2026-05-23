@@ -9,7 +9,7 @@ import { PinSetupModal } from '@/components/parental/PinSetupModal';
 import { useCloudSyncConfigStore, getSupabaseConfig } from '@/state/cloudSyncConfigStore';
 import { useMoviesStore } from '@/state/moviesStore';
 import { useSeriesStore } from '@/state/seriesStore';
-import { useSettingsStore, LANGUAGE_NAMES, type Language } from '@/state/settingsStore';
+import { useSettingsStore, LANGUAGE_NAMES, type Language, type SubtitleSize } from '@/state/settingsStore';
 
 // ─── SVG Icons (28×28) ────────────────────────────────────────────────────────
 
@@ -559,6 +559,97 @@ function LanguageModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── Modal: Altyazı Ayarları ─────────────────────────────────────────────────
+
+const SUBTITLE_SIZES: { value: SubtitleSize; labelKey: string }[] = [
+  { value: 'small',  labelKey: 'settings.subtitle_settings.size_small'  },
+  { value: 'medium', labelKey: 'settings.subtitle_settings.size_medium' },
+  { value: 'large',  labelKey: 'settings.subtitle_settings.size_large'  },
+];
+
+function SubtitleSettingsModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const { subtitleEnabled, subtitleSize, setSubtitleEnabled, setSubtitleSize } =
+    useSettingsStore();
+
+  return (
+    <ModalBase
+      focusKey="SUBTITLE_MODAL"
+      initialFocus="subtitle-toggle"
+      title={t('settings.subtitle_settings.title')}
+      onClose={onClose}
+    >
+      {/* ── Gösterim ── */}
+      <p className="text-[10px] uppercase tracking-[0.3em] text-white/30 mb-2">
+        {t('settings.subtitle_settings.section_display')}
+      </p>
+      <div className="flex gap-3 mb-6">
+        {[true, false].map((val, idx) => {
+          const isActive = subtitleEnabled === val;
+          const label = val
+            ? t('settings.subtitle_settings.toggle_on')
+            : t('settings.subtitle_settings.toggle_off');
+          return (
+            <SubtitleToggleBtn
+              key={String(val)}
+              focusKey={idx === 0 ? 'subtitle-toggle' : 'subtitle-toggle-off'}
+              label={label}
+              isActive={isActive}
+              onSelect={() => setSubtitleEnabled(val)}
+            />
+          );
+        })}
+      </div>
+
+      {/* ── Yazı Boyutu ── */}
+      <p className="text-[10px] uppercase tracking-[0.3em] text-white/30 mb-2">
+        {t('settings.subtitle_settings.section_size')}
+      </p>
+      <div className="flex flex-col gap-2 mb-6">
+        {SUBTITLE_SIZES.map((opt, idx) => (
+          <LangItem
+            key={opt.value}
+            code={opt.value}
+            name={t(opt.labelKey)}
+            tag={t(opt.labelKey).slice(0, 1).toUpperCase()}
+            isSelected={subtitleSize === opt.value}
+            isLast={idx === SUBTITLE_SIZES.length - 1}
+            onSelect={() => { setSubtitleSize(opt.value); }}
+          />
+        ))}
+      </div>
+
+      <div className="flex justify-end">
+        <ModalCloseBtn focusKey="subtitle-close" onPress={onClose} label={t('modal.close')} />
+      </div>
+    </ModalBase>
+  );
+}
+
+// Toggle button — Açık / Kapalı için yan yana butonlar
+function SubtitleToggleBtn({
+  focusKey: btnKey, label, isActive, onSelect,
+}: {
+  focusKey: string; label: string; isActive: boolean; onSelect: () => void;
+}) {
+  const { ref, focused } = useFocusable({ focusKey: btnKey, onEnterPress: onSelect });
+  return (
+    <button
+      ref={ref as React.RefObject<HTMLButtonElement>}
+      onClick={onSelect}
+      className={[
+        'px-5 py-2.5 rounded-xl text-[15px] font-medium transition-all border',
+        isActive
+          ? 'bg-[#E8B567]/15 border-[#E8B567]/40 text-[#E8B567]'
+          : 'bg-white/[0.04] border-white/[0.08] text-white/45',
+        focused ? 'outline outline-2 outline-white/30 outline-offset-[-2px]' : '',
+      ].join(' ')}
+    >
+      {label}
+    </button>
+  );
+}
+
 // ─── Modal: Parental Detail ───────────────────────────────────────────────────
 
 function ParentalDetailModal({
@@ -796,6 +887,7 @@ type Modal =
   | 'hide-vod-categories'    // Film kategorileri
   | 'hide-series-categories' // Dizi kategorileri
   | 'language'               // Dil seçimi
+  | 'subtitle-settings'     // Altyazı ayarları
   | 'cloud-sync'
   | null;
 
@@ -808,7 +900,7 @@ export function SettingsScreen() {
   const hiddenCategories     = usePlaylistStore((s) => s.hiddenCategories);
   const { mac, key: deviceKey } = useDeviceInfo();
   const [modal, setModal] = useState<Modal>(null);
-  const { timeFormat, setTimeFormat, language } = useSettingsStore();
+  const { timeFormat, setTimeFormat, language, subtitleEnabled, subtitleSize } = useSettingsStore();
 
   const { ref, focusKey, setFocus } = useFocusable({ focusKey: 'SETTINGS_SCREEN' });
 
@@ -880,8 +972,10 @@ export function SettingsScreen() {
       id: 'privacy-2',
       icon: <IconSubtitle />,
       title: t('settings.subtitle_settings.title'),
-      subtitle: t('settings.subtitle_settings.subtitle'),
-      onPress: v2Stub,
+      subtitle: subtitleEnabled
+        ? t('settings.subtitle_settings.subtitle_on', { size: t(`settings.subtitle_settings.size_${subtitleSize}`) })
+        : t('settings.subtitle_settings.subtitle_off'),
+      onPress: () => setModal('subtitle-settings'),
     },
   ];
 
@@ -1147,6 +1241,12 @@ export function SettingsScreen() {
       {modal === 'language' && (
         <LanguageModal
           onClose={() => { setModal(null); setTimeout(() => setFocus('settings-card-privacy-1'), 50); }}
+        />
+      )}
+
+      {modal === 'subtitle-settings' && (
+        <SubtitleSettingsModal
+          onClose={() => { setModal(null); setTimeout(() => setFocus('settings-card-privacy-2'), 50); }}
         />
       )}
 

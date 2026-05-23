@@ -113,7 +113,8 @@
     "reason_stream_closed": "Provider stream'i geçici olarak kapalı",
     "reason_network": "Ağ erişim engeli (geo-block, firewall)",
     "reason_format": "Provider'ın URL formatı bu TV tarafından desteklenmiyor",
-    "tried_combinations": "Denenen kombinasyonlar ({{count}})"
+    "tried_combinations": "Denenen kombinasyonlar ({{count}})",
+    "retry": "Tekrar dene"
   },
   "channel_list": {
     "all": "Tümü",
@@ -222,7 +223,15 @@
     },
     "subtitle_settings": {
       "title": "Altyazı Ayarları",
-      "subtitle": "Türkçe · Orta"
+      "subtitle_on": "Açık · {{size}}",
+      "subtitle_off": "Kapalı",
+      "section_display": "Gösterim",
+      "toggle_on": "Açık",
+      "toggle_off": "Kapalı",
+      "section_size": "Yazı Boyutu",
+      "size_small": "Küçük",
+      "size_medium": "Orta",
+      "size_large": "Büyük"
     },
     "hide_live": {
       "title": "Canlı Kategorileri Gizle",

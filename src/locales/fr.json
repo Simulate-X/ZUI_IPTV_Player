@@ -113,7 +113,8 @@
     "reason_stream_closed": "Le flux du fournisseur est temporairement hors ligne",
     "reason_network": "Accès réseau bloqué (géo-blocage, pare-feu)",
     "reason_format": "Le format d'URL du fournisseur n'est pas pris en charge par ce téléviseur",
-    "tried_combinations": "Combinaisons essayées ({{count}})"
+    "tried_combinations": "Combinaisons essayées ({{count}})",
+    "retry": "Réessayer"
   },
   "channel_list": {
     "all": "Tout",
@@ -222,7 +223,15 @@
     },
     "subtitle_settings": {
       "title": "Paramètres des sous-titres",
-      "subtitle": "Français · Moyen"
+      "subtitle_on": "Activé · {{size}}",
+      "subtitle_off": "Désactivé",
+      "section_display": "Affichage",
+      "toggle_on": "Activé",
+      "toggle_off": "Désactivé",
+      "section_size": "Taille de police",
+      "size_small": "Petit",
+      "size_medium": "Moyen",
+      "size_large": "Grand"
     },
     "hide_live": {
       "title": "Masquer les catégories en direct",

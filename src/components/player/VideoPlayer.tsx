@@ -1,7 +1,9 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 import { usePlayerStore } from '@/state/playerStore';
 import { useUIStore } from '@/state/uiStore';
+import { useSettingsStore, SUBTITLE_SIZE_PX } from '@/state/settingsStore';
 import { usePlayer } from '@/hooks/usePlayer';
 import { useRemote } from '@/hooks/useRemote';
 import { useAudioWatchdog } from '@/hooks/useAudioWatchdog';
@@ -12,7 +14,10 @@ import { Spinner } from '@/components/common/Spinner';
 import type { PlaybackAttempt } from '@/types/player';
 
 export function VideoPlayer() {
+  const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const subtitleEnabled = useSettingsStore((s) => s.subtitleEnabled);
+  const subtitleSize    = useSettingsStore((s) => s.subtitleSize);
   const playerState = usePlayerStore((s) => s.state);
   const error = usePlayerStore((s) => s.error);
   const currentSource = usePlayerStore((s) => s.currentSource);
@@ -63,6 +68,27 @@ export function VideoPlayer() {
       setSource({ ...currentSource });
     }
   }, [currentSource, setSource]);
+
+  // ─── Subtitle enable / disable ──────────────────────────────────────────────
+  // Applies to HLS WebVTT / CEA-608 tracks embedded in the stream.
+  // 'addtrack' listener ensures tracks added after playback starts are also covered.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const applyMode = () => {
+      const mode: TextTrackMode = subtitleEnabled ? 'showing' : 'hidden';
+      for (let i = 0; i < video.textTracks.length; i++) {
+        video.textTracks[i].mode = mode;
+      }
+    };
+
+    applyMode();
+    video.textTracks.addEventListener('addtrack', applyMode);
+    return () => {
+      video.textTracks.removeEventListener('addtrack', applyMode);
+    };
+  }, [subtitleEnabled]);
 
   usePlayer(videoRef, onFatalError);
   useRemote(videoRef);
@@ -115,6 +141,9 @@ export function VideoPlayer() {
 
   return (
     <div className="relative w-full h-full bg-bg-base overflow-hidden">
+      {/* Dynamic subtitle font size — targets native ::cue rendering */}
+      <style>{`video::cue { font-size: ${SUBTITLE_SIZE_PX[subtitleSize]}; }`}</style>
+
       <video
         ref={videoRef}
         className="absolute inset-0 w-full h-full"
@@ -143,7 +172,7 @@ export function VideoPlayer() {
             // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
           >
-            Tekrar dene
+            {t('player.retry')}
           </button>
         </div>
       )}

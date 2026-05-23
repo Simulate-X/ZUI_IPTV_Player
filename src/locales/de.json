@@ -113,7 +113,8 @@
     "reason_stream_closed": "Provider-Stream ist vorübergehend offline",
     "reason_network": "Netzwerkzugriff blockiert (Geo-Block, Firewall)",
     "reason_format": "URL-Format des Providers wird von diesem TV nicht unterstützt",
-    "tried_combinations": "Versuchte Kombinationen ({{count}})"
+    "tried_combinations": "Versuchte Kombinationen ({{count}})",
+    "retry": "Erneut versuchen"
   },
   "channel_list": {
     "all": "Alle",
@@ -222,7 +223,15 @@
     },
     "subtitle_settings": {
       "title": "Untertitel-Einstellungen",
-      "subtitle": "Deutsch · Mittel"
+      "subtitle_on": "An · {{size}}",
+      "subtitle_off": "Aus",
+      "section_display": "Anzeige",
+      "toggle_on": "An",
+      "toggle_off": "Aus",
+      "section_size": "Schriftgröße",
+      "size_small": "Klein",
+      "size_medium": "Mittel",
+      "size_large": "Groß"
     },
     "hide_live": {
       "title": "Live-Kategorien ausblenden",
