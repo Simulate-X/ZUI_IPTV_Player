@@ -95,7 +95,7 @@ CREATE POLICY "devices: self select"
 CREATE TABLE IF NOT EXISTS public.playlists (
   id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   device_id        TEXT        NOT NULL REFERENCES public.devices (device_id) ON DELETE CASCADE,
-  device_key       TEXT        NOT NULL,   -- echoed from headers at INSERT time
+  device_key       TEXT        DEFAULT NULL, -- legacy column; auth now via devices JOIN (see policies)
   playlist_url     TEXT        NOT NULL,
   playlist_name    TEXT,
   source_type      TEXT        NOT NULL DEFAULT 'm3u', -- 'm3u' | 'xtream'
@@ -107,14 +107,16 @@ CREATE TABLE IF NOT EXISTS public.playlists (
 
 ALTER TABLE public.playlists ENABLE ROW LEVEL SECURITY;
 
--- ── INSERT — only allowed when both headers match a registered device ──────────
--- The cross-check against devices prevents forged inserts: even if someone
--- knows a device_id, they cannot insert without the matching key.
+-- ── Auth helper — verifies caller's headers match a registered device ─────────
+-- All playlists policies use this JOIN instead of the stored device_key column.
+-- Benefit: key rotation (updating devices.device_key) automatically keeps all
+-- existing playlist rows accessible — no orphaned rows.
+
+-- ── INSERT — caller must present headers matching a registered device ──────────
 CREATE POLICY "playlists: insert own"
   ON public.playlists FOR INSERT
   WITH CHECK (
-    device_id  = public.zui_device_id()  AND
-    device_key = public.zui_device_key() AND
+    device_id = public.zui_device_id() AND
     EXISTS (
       SELECT 1 FROM public.devices d
       WHERE d.device_id  = public.zui_device_id()
@@ -122,32 +124,48 @@ CREATE POLICY "playlists: insert own"
     )
   );
 
--- ── SELECT — only rows belonging to the calling device ───────────────────────
+-- ── SELECT — only rows belonging to the authenticated device ──────────────────
 CREATE POLICY "playlists: select own"
   ON public.playlists FOR SELECT
   USING (
-    device_id  = public.zui_device_id() AND
-    device_key = public.zui_device_key()
+    device_id = public.zui_device_id() AND
+    EXISTS (
+      SELECT 1 FROM public.devices d
+      WHERE d.device_id  = public.zui_device_id()
+        AND d.device_key = public.zui_device_key()
+    )
   );
 
 -- ── UPDATE — only own rows (TV marks playlist as loaded=true) ─────────────────
 CREATE POLICY "playlists: update own"
   ON public.playlists FOR UPDATE
   USING (
-    device_id  = public.zui_device_id() AND
-    device_key = public.zui_device_key()
+    device_id = public.zui_device_id() AND
+    EXISTS (
+      SELECT 1 FROM public.devices d
+      WHERE d.device_id  = public.zui_device_id()
+        AND d.device_key = public.zui_device_key()
+    )
   )
   WITH CHECK (
-    device_id  = public.zui_device_id() AND
-    device_key = public.zui_device_key()
+    device_id = public.zui_device_id() AND
+    EXISTS (
+      SELECT 1 FROM public.devices d
+      WHERE d.device_id  = public.zui_device_id()
+        AND d.device_key = public.zui_device_key()
+    )
   );
 
 -- ── DELETE — web companion can remove sent playlists ─────────────────────────
 CREATE POLICY "playlists: delete own"
   ON public.playlists FOR DELETE
   USING (
-    device_id  = public.zui_device_id() AND
-    device_key = public.zui_device_key()
+    device_id = public.zui_device_id() AND
+    EXISTS (
+      SELECT 1 FROM public.devices d
+      WHERE d.device_id  = public.zui_device_id()
+        AND d.device_key = public.zui_device_key()
+    )
   );
 
 

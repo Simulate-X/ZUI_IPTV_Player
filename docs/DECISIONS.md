@@ -969,3 +969,56 @@ Başarısız kanallar büyük ihtimalle HEVC/H.265 (NANO81 destekler ama belirli
 İlk denenecek olan #1; provider destekliyorsa sıfır maliyet. Aksi durumda #2 fallback. #3 sadece kullanıcı opt-in ile.
 
 Faz 4A'da workaround: kullanıcı manuel olarak yabancı kanallara tıklamamayı bilmesi.
+
+---
+
+## D-036 — Cloud Sync: Supabase RLS Threat Model + Playlists Policy Join Fix
+
+**Tarih**: 2026-05-23
+**Statü**: Accepted
+
+**Bağlam**: Repo public olduktan sonra Claude Opus 4.7 güvenlik analizi yapıldı. Üç madde tespit edildi; biri kritik (history'de key), biri design hatası (policy), biri kabul edilebilir risk (key derivation). Kararlar burada belgeleniyor.
+
+---
+
+### 1. Git History — Hardcoded Credential (Kapatıldı)
+
+`git log -S <key> --oneline` ile kontrol edildi. Supabase anon key veya secret hiçbir commit'e girmemiş. `.gitignore`'daki `.env.local` ve `.env` kuralları bu riski başından önlemişti. **Aksiyon gerekmez.**
+
+---
+
+### 2. Device Key Derivation — Deterministik Hash Riski (Kabul Edildi, v1.1'e Ertelendi)
+
+**Mevcut durum**: `deviceIdentity.ts`'de `key = djb2(serialNumber, 0xbeefdead)` kullanılıyor. Algoritma public repo'da görünür. Serial numarasını bilen biri `shortId` + `key` çiftini hesaplayabilir.
+
+**Saldırı zinciri**: serial → hesaplanan key → Supabase'e doğru header → `playlists` tablosunda `xtream_username` / `xtream_password` okunabilir.
+
+**Neden kabul edilebilir (self-host model)**:
+- Supabase instance kullanıcının kendi kontrolünde — free-tier kotası haricinde veri dışarı sızmaz
+- Saldırganın hem serial numarasını (fiziksel erişim/sticker) hem Supabase URL+anon key'i bilmesi gerekir
+- Anon key zaten "public-by-design" — ama URL+key+serial üçlüsünü aynı anda bilmek pratik değil
+
+**v1.1 Fix Planı**: `resolveDeviceIdentity()` içinde serial-hash'e ek olarak `crypto.getRandomValues` ile üretilmiş 16-byte salt localStorage'a persist edilecek. Key = `djb2(serial + salt, seed)`. Saf deterministik bağımlılık kırılacak.
+
+---
+
+### 3. Playlists RLS Policy — device_key Column vs JOIN (Düzeltildi)
+
+**Sorun**: `playlists.device_key` kolonu her satıra INSERT sırasında echo'lanıyordu ve SELECT/UPDATE/DELETE policy'leri bu stored değeri kullanıyordu. TV'nin key'i rotate etmesi halinde (serial değişimi, yeniden kurulum) `devices.device_key` güncellenir ama eski `playlists.device_key` değerleri değişmez → SELECT policy eşleşmez → satırlar "kaybolur".
+
+**Karar**: Tüm playlists policy'leri `EXISTS (SELECT 1 FROM devices WHERE device_id = ... AND device_key = ...)` JOIN yaklaşımına geçirildi. `playlists.device_key` kolonu nullable yapıldı (geriye dönük uyumluluk için tutuldu, auth'ta kullanılmıyor).
+
+**Sonuç**: Key rotation → `devices.device_key` UPDATE → tüm eski playlist satırları otomatik erişilebilir kalır.
+
+**Migration**: `docs/cloud-sync/migration_v1.1.sql` (v1.0 schema'sı çalıştırılmış installs için).
+
+---
+
+### Threat Model Özeti (v1.0)
+
+| Vektör | Gereksinim | Etki | Değerlendirme |
+|--------|-----------|------|---------------|
+| Anon key leak | Public repo'da key | Kota tükenmesi (RLS veri vermez) | **Düşük** — anon key by-design public |
+| Serial + anon key | Fiziksel erişim + key | Xtream credentials okunabilir | **Orta** — v1.1'de fix |
+| Policy bypass | — | İmkânsız | **Yok** — RLS server-side enforce |
+| History leak | Commit geçmişi | — | **Yok** — history temiz |

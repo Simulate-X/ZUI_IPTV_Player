@@ -72,7 +72,7 @@
 
 ```bash
 # Clone
-git clone https://github.com/YOUR_USERNAME/ZUI_IPTV_Player.git
+git clone https://github.com/Simulate-X/ZUI_IPTV_Player.git
 cd ZUI_IPTV_Player
 
 # Install deps
