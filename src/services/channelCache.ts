@@ -4,21 +4,29 @@ import type { Source } from '@/types/source';
 
 export const channelCache = {
   async putChannels(channels: Channel[]): Promise<void> {
+    if (channels.length === 0) return;
     const db = await getDB();
-    const tx = db.transaction('channels', 'readwrite');
-    await Promise.all([...channels.map((ch) => tx.store.put(ch)), tx.done]);
+    // webOS IDB performans: tek devasa transaction yerine 300'lük batch'ler
+    // kullan. Her batch commit edince bellek serbest kalır ve disk flush olur.
+    const CHUNK_SIZE = 300;
+    for (let i = 0; i < channels.length; i += CHUNK_SIZE) {
+      const chunk = channels.slice(i, i + CHUNK_SIZE);
+      const tx = db.transaction('channels', 'readwrite');
+      await Promise.all([...chunk.map((ch) => tx.store.put(ch)), tx.done]);
+    }
   },
 
   async clearSourceChannels(sourceId: string): Promise<void> {
     const db = await getDB();
-    const tx = db.transaction('channels', 'readwrite');
-    const index = tx.store.index('by-sourceId');
-    let cursor = await index.openCursor(IDBKeyRange.only(sourceId));
-    while (cursor) {
-      await cursor.delete();
-      cursor = await cursor.continue();
-    }
-    await tx.done;
+    // Önce primary key'leri toplu oku (salt-okunur tx → hızlı)
+    const readTx = db.transaction('channels', 'readonly');
+    const keys = await readTx.store.index('by-sourceId').getAllKeys(IDBKeyRange.only(sourceId));
+    await readTx.done;
+    if (keys.length === 0) return;
+    // Tek transaction içinde Promise.all ile toplu sil (cursor'dan ~10x hızlı)
+    const writeTx = db.transaction('channels', 'readwrite');
+    await Promise.all(keys.map((k) => writeTx.store.delete(k)));
+    await writeTx.done;
   },
 
   async getCategoriesForSource(sourceId: string): Promise<Array<{ name: string; count: number }>> {

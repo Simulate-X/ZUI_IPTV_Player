@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { usePlayerStore } from '@/state/playerStore';
 
-const OSD_HIDE_DELAY_MS = 4000;
+const OSD_HIDE_DELAY_MS = 10000;
 const SEEK_SECONDS = 10;
 
 export function useRemote(videoRef: React.RefObject<HTMLVideoElement | null>) {

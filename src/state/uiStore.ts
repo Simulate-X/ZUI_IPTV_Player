@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type Screen = 'loading' | 'onboarding' | 'home' | 'channelList' | 'epg' | 'settings' | 'player' | 'movies';
+export type Screen = 'loading' | 'onboarding' | 'home' | 'channelList' | 'epg' | 'settings' | 'player' | 'movies' | 'series' | 'playlists';
 
 // Screens that can be "returned to" after leaving the player.
-export type MainScreen = 'channelList' | 'epg' | 'movies';
+export type MainScreen = 'channelList' | 'epg' | 'movies' | 'series';
 
 type UIStore = {
   currentScreen: Screen;
@@ -17,7 +17,7 @@ type UIStore = {
   closeModal: () => void;
 };
 
-const MAIN_SCREENS: MainScreen[] = ['channelList', 'epg', 'movies'];
+const MAIN_SCREENS: MainScreen[] = ['channelList', 'epg', 'movies', 'series'];
 
 export const useUIStore = create<UIStore>()(
   persist(

@@ -1,6 +1,7 @@
 node_modules/
 dist/
 dist-ipk/
+*.ipk
 .env
 .env.local
 .env.*.local
@@ -10,3 +11,11 @@ Thumbs.db
 .idea/
 *.log
 npm-debug.log*
+
+# Internal dev artefacts (not for public repo)
+PROMPT_FAZ*.md
+ZUI_IPTV_Player_docs-structure.txt
+*\ -\ Kopya*.tsx
+*\ -\ Kopya*.ts
+*\ -\ Kopya\ (*).tsx
+*\ -\ Kopya\ (*).ts

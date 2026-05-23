@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FocusContext, useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 import { FocusableButton } from '@/components/common/FocusableButton';
 import { FocusableInput } from '@/components/common/FocusableInput';
@@ -24,12 +25,13 @@ function TypeStep({
   onSelect: (t: SourceType) => void;
   onCancel: (() => void) | null;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-h2 text-text-primary mb-2">Kaynak Tipi Seç</h2>
+        <h2 className="text-h2 text-text-primary mb-2">{t('add_source.type_title')}</h2>
         <p className="text-body text-text-secondary">
-          M3U URL'i veya Xtream Codes hesabı ekleyebilirsiniz.
+          {t('add_source.type_desc')}
         </p>
       </div>
       <div className="flex flex-col gap-4">
@@ -42,7 +44,7 @@ function TypeStep({
           <div className="flex flex-col items-start gap-1 w-full">
             <span className="text-body font-medium">M3U URL</span>
             <span className="text-small text-text-tertiary">
-              .m3u veya .m3u8 playlist URL'i
+              {t('add_source.m3u_subtitle')}
             </span>
           </div>
         </FocusableButton>
@@ -55,14 +57,14 @@ function TypeStep({
           <div className="flex flex-col items-start gap-1 w-full">
             <span className="text-body font-medium">Xtream Codes</span>
             <span className="text-small text-text-tertiary">
-              Host, kullanıcı adı ve şifre ile
+              {t('add_source.xtream_subtitle')}
             </span>
           </div>
         </FocusableButton>
       </div>
       {onCancel && (
         <FocusableButton focusKey="add-source-type-cancel" variant="ghost" size="sm" onEnterPress={onCancel}>
-          İptal
+          {t('common.cancel')}
         </FocusableButton>
       )}
     </div>
@@ -90,19 +92,20 @@ function M3UForm({
   error: string | null;
   loading: boolean;
 }) {
+  const { t } = useTranslation();
   const isValid = /^https?:\/\/.+/.test(url.trim());
 
   return (
     <div className="flex flex-col gap-5">
-      <h2 className="text-h2 text-text-primary">M3U Playlist Ekle</h2>
+      <h2 className="text-h2 text-text-primary">{t('add_source.m3u_title')}</h2>
 
       <div className="flex flex-col gap-2">
-        <label className="text-small text-text-secondary">İsim (opsiyonel)</label>
+        <label className="text-small text-text-secondary">{t('add_source.name_label')}</label>
         <FocusableInput
           focusKey="m3u-name"
           value={name}
           onChange={setName}
-          placeholder="M3U Listesi"
+          placeholder={t('add_source.m3u_default_name')}
           type="text"
         />
       </div>
@@ -127,7 +130,7 @@ function M3UForm({
           onEnterPress={onBack}
           disabled={loading}
         >
-          ← Geri
+          {t('common.back')}
         </FocusableButton>
         <FocusableButton
           focusKey="m3u-submit"
@@ -136,7 +139,7 @@ function M3UForm({
           onEnterPress={onSubmit}
           disabled={!isValid || loading}
         >
-          {loading ? 'Ekleniyor…' : 'Doğrula ve Kaydet'}
+          {loading ? t('add_source.adding') : t('add_source.validate_save')}
         </FocusableButton>
       </div>
     </div>
@@ -180,19 +183,20 @@ function XtreamForm({
   error: string | null;
   loading: boolean;
 }) {
+  const { t } = useTranslation();
   const isValid = host.trim() && username.trim() && password.trim();
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-h2 text-text-primary">Xtream Codes Ekle</h2>
+      <h2 className="text-h2 text-text-primary">{t('add_source.xtream_title')}</h2>
 
       <div className="flex flex-col gap-2">
-        <label className="text-small text-text-secondary">İsim (opsiyonel)</label>
+        <label className="text-small text-text-secondary">{t('add_source.name_label')}</label>
         <FocusableInput
           focusKey="xt-name"
           value={name}
           onChange={setName}
-          placeholder="Xtream Provider"
+          placeholder={t('add_source.xtream_default_name')}
           type="text"
         />
       </div>
@@ -221,7 +225,7 @@ function XtreamForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-small text-text-secondary">Kullanıcı Adı *</label>
+        <label className="text-small text-text-secondary">{t('add_source.username_label')}</label>
         <FocusableInput
           focusKey="xt-username"
           value={username}
@@ -232,7 +236,7 @@ function XtreamForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-small text-text-secondary">Şifre *</label>
+        <label className="text-small text-text-secondary">{t('add_source.password_label')}</label>
         <FocusableInput
           focusKey="xt-password"
           value={password}
@@ -245,7 +249,7 @@ function XtreamForm({
       {/* D-035: Category prefix filter */}
       <div className="flex flex-col gap-2 border-t border-border-subtle pt-4">
         <label className="text-small text-text-secondary">
-          Kategori Filtresi <span className="text-text-tertiary">(opsiyonel)</span>
+          {t('add_source.cat_filter_label')} <span className="text-text-tertiary">({t('onboarding.optional')})</span>
         </label>
         <FocusableInput
           focusKey="xt-prefix-filter"
@@ -255,12 +259,11 @@ function XtreamForm({
           type="text"
         />
         <p className="text-tiny text-text-tertiary leading-relaxed">
-          Virgülle ayrılmış prefix'ler. Sadece bu prefix'lerle başlayan kategoriler gösterilir.
-          Boş bırakırsanız tüm kategoriler listelenir.
+          {t('add_source.cat_filter_hint')}
         </p>
         {!categoryPrefixInput.trim() && (
           <p className="text-tiny text-warning">
-            ℹ Provider otomatik filtre desteklemiyorsa bu alanı doldurun (örn: "TR")
+            {t('add_source.cat_filter_tip')}
           </p>
         )}
       </div>
@@ -275,7 +278,7 @@ function XtreamForm({
           onEnterPress={onBack}
           disabled={loading}
         >
-          ← Geri
+          {t('common.back')}
         </FocusableButton>
         <FocusableButton
           focusKey="xt-submit"
@@ -284,7 +287,7 @@ function XtreamForm({
           onEnterPress={onSubmit}
           disabled={!isValid || loading}
         >
-          {loading ? 'Doğrulanıyor…' : 'Doğrula ve Kaydet'}
+          {loading ? t('add_source.validating') : t('add_source.validate_save')}
         </FocusableButton>
       </div>
     </div>
@@ -294,10 +297,11 @@ function XtreamForm({
 // ─── Step: Validating ─────────────────────────────────────────────────────────
 
 function ValidatingStep({ progress }: { progress: number }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center gap-6 py-8">
       <Spinner />
-      <p className="text-body text-text-secondary">Kaynak doğrulanıyor ve yükleniyor…</p>
+      <p className="text-body text-text-secondary">{t('add_source.loading_text')}</p>
       {progress > 0 && (
         <div className="w-full flex flex-col gap-2">
           <div className="w-full bg-bg-elevated rounded-full h-3">
@@ -316,6 +320,7 @@ function ValidatingStep({ progress }: { progress: number }) {
 // ─── Main Modal ───────────────────────────────────────────────────────────────
 
 export function AddSourceModal({ onSuccess, onCancel }: Props) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<Step>('type');
   const [type, setType] = useState<SourceType>('m3u');
 
@@ -387,7 +392,7 @@ export function AddSourceModal({ onSuccess, onCancel }: Props) {
       result = await addSource(
         {
           type: 'm3u',
-          name: m3uName.trim() || 'M3U Listesi',
+          name: m3uName.trim() || t('add_source.m3u_default_name'),
           config: { url: m3uUrl.trim() },
         },
         (p) => setProgress(p.percent)
@@ -402,7 +407,7 @@ export function AddSourceModal({ onSuccess, onCancel }: Props) {
       result = await addSource(
         {
           type: 'xtream',
-          name: xtName.trim() || 'Xtream Provider',
+          name: xtName.trim() || t('add_source.xtream_default_name'),
           config: {
             host: xtHost.trim(),
             port: parseInt(xtPort, 10) || 80,

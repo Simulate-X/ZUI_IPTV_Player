@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
 import { FocusableButton } from './FocusableButton';
 
@@ -14,11 +15,14 @@ type Props = {
 export function ConfirmModal({
   title,
   message,
-  confirmLabel = 'Evet',
-  cancelLabel = 'İptal',
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
 }: Props) {
+  const { t } = useTranslation();
+  const resolvedConfirmLabel = confirmLabel ?? t('common.yes');
+  const resolvedCancelLabel  = cancelLabel  ?? t('common.cancel');
   const { ref, focusKey, setFocus } = useFocusable({
     focusKey: 'MODAL',
     isFocusBoundary: true,
@@ -46,7 +50,7 @@ export function ConfirmModal({
               size="md"
               onEnterPress={onCancel}
             >
-              {cancelLabel}
+              {resolvedCancelLabel}
             </FocusableButton>
             <FocusableButton
               focusKey="modal-confirm"
@@ -54,7 +58,7 @@ export function ConfirmModal({
               size="md"
               onEnterPress={onConfirm}
             >
-              {confirmLabel}
+              {resolvedConfirmLabel}
             </FocusableButton>
           </div>
         </div>

@@ -105,6 +105,8 @@ type MoviesStore = {
   status: VodStatus;
   error: string | null;
 
+  hiddenCategoryIds: string[];
+
   // Actions
   loadVodData: () => Promise<void>;
   setActiveCategory: (id: string) => void;
@@ -112,6 +114,7 @@ type MoviesStore = {
   cycleSort: () => void;
   toggleFavorite: (id: string) => void;
   setWatchProgress: (id: string, progress: number) => void;
+  toggleHiddenCategory: (id: string) => void;
   playMovie: (id: string) => void;
   openMovieDetails: (id: string) => void;
 
@@ -131,6 +134,7 @@ export const useMoviesStore = create<MoviesStore>()(
       activeCategory: '',
       favoriteIds: [],
       watchProgress: {},
+      hiddenCategoryIds: [],
       sortBy: 'added',
       categorySearch: '',
       newThisWeekCount: 0,
@@ -191,7 +195,10 @@ export const useMoviesStore = create<MoviesStore>()(
         get()._recompute();
       },
 
-      setCategorySearch: (q) => set({ categorySearch: q }),
+      setCategorySearch: (q) => {
+        set({ categorySearch: q });
+        get()._recompute();
+      },
 
       // ── Sort ────────────────────────────────────────────────────────────
 
@@ -202,6 +209,13 @@ export const useMoviesStore = create<MoviesStore>()(
         const sorted = sortMovies(get().allMovies, next);
         set({ sortBy: next, allMovies: sorted });
         get()._recompute();
+      },
+
+      // ── Hidden categories ────────────────────────────────────────────────────
+      toggleHiddenCategory: (id) => {
+        const prev = get().hiddenCategoryIds;
+        const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+        set({ hiddenCategoryIds: next });
       },
 
       // ── Favorites ───────────────────────────────────────────────────────
@@ -252,8 +266,14 @@ export const useMoviesStore = create<MoviesStore>()(
       // ── Internal ────────────────────────────────────────────────────────
 
       _recompute: () => {
-        const { allMovies, activeCategory, favoriteIds, watchProgress } = get();
-        set({ visibleMovies: computeVisible(allMovies, activeCategory, favoriteIds, watchProgress) });
+        const { allMovies, activeCategory, favoriteIds, watchProgress, categorySearch } = get();
+        if (categorySearch.trim()) {
+          // Search mode: override category filter, show all movies matching title
+          const q = categorySearch.toLocaleLowerCase('tr');
+          set({ visibleMovies: allMovies.filter(m => m.title.toLocaleLowerCase('tr').includes(q)) });
+        } else {
+          set({ visibleMovies: computeVisible(allMovies, activeCategory, favoriteIds, watchProgress) });
+        }
       },
 
       _updateSpecials: () => {
@@ -272,6 +292,7 @@ export const useMoviesStore = create<MoviesStore>()(
       partialize: (s) => ({
         favoriteIds: s.favoriteIds,
         watchProgress: s.watchProgress,
+        hiddenCategoryIds: s.hiddenCategoryIds,
         sortBy: s.sortBy,
         activeCategory: s.activeCategory,
       }),

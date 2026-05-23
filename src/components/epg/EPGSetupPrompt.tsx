@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
 import { FocusableButton } from '@/components/common/FocusableButton';
 import { FocusableInput } from '@/components/common/FocusableInput';
@@ -6,20 +7,21 @@ import { useEpgStore } from '@/state/epgStore';
 
 const TR_EPG_URL = 'https://epgshare01.online/epgshare01/epg_ripper_TR1.xml';
 
-const PHASE_LABELS: Record<string, string> = {
-  fetching: 'EPG verisi indiriliyor...',
-  parsing: 'XML parse ediliyor...',
-  normalizing: 'Program verileri düzenleniyor...',
-  writing: 'Veritabanına yazılıyor...',
-};
-
 export function EPGSetupPrompt() {
+  const { t } = useTranslation();
   const [url, setUrl] = useState('');
   const isSyncing = useEpgStore((s) => s.isSyncing);
   const syncPhase = useEpgStore((s) => s.syncPhase);
   const syncAttemptedUrl = useEpgStore((s) => s.syncAttemptedUrl);
   const syncError = useEpgStore((s) => s.syncError);
   const syncEpg = useEpgStore((s) => s.syncEPG);
+
+  const PHASE_LABELS: Record<string, string> = {
+    fetching: t('epg.phase_fetching'),
+    parsing: t('epg.phase_parsing'),
+    normalizing: t('epg.phase_normalizing'),
+    writing: t('epg.phase_writing'),
+  };
 
   const { ref, focusKey, setFocus } = useFocusable({
     focusKey: 'EPG_SETUP',
@@ -39,9 +41,9 @@ export function EPGSetupPrompt() {
         className="flex flex-col items-center justify-center h-full gap-8 p-12"
       >
         <div className="text-center space-y-3">
-          <div className="text-h1 text-text-primary">📡 TV Rehberi</div>
+          <div className="text-h1 text-text-primary">{t('epg.title')}</div>
           <div className="text-body text-text-secondary max-w-md">
-            Kanal programlarını görmek için bir XMLTV EPG URL'i yapılandırın.
+            {t('epg.description')}
           </div>
         </div>
 
@@ -65,7 +67,7 @@ export function EPGSetupPrompt() {
               }}
               disabled={isSyncing}
             >
-              Test EPG yükle (TR)
+              {t('epg.test_load')}
             </FocusableButton>
             <FocusableButton
               focusKey="epg-setup-load"
@@ -74,7 +76,7 @@ export function EPGSetupPrompt() {
               onEnterPress={handleLoad}
               disabled={isSyncing || !url.trim()}
             >
-              Yükle
+              {t('epg.load')}
             </FocusableButton>
           </div>
         </div>
@@ -88,7 +90,7 @@ export function EPGSetupPrompt() {
             )}
             {syncAttemptedUrl && (
               <div className="text-small text-text-tertiary truncate max-w-md">
-                Denenen kaynak: {syncAttemptedUrl}
+                {t('epg.trying_source', { url: syncAttemptedUrl })}
               </div>
             )}
           </div>
@@ -96,7 +98,7 @@ export function EPGSetupPrompt() {
 
         {syncError && (
           <div className="text-body text-red-400 max-w-md text-center">
-            Hata: {syncError}
+            {t('epg.error_prefix', { error: syncError })}
           </div>
         )}
       </div>

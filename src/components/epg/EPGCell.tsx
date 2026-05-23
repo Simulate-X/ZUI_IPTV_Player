@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFocusableScroll } from '@/hooks/useFocusableScroll';
 import type { EPGProgram } from '@/types/epg';
 
@@ -23,6 +24,7 @@ export function EPGCell({
   totalWidthPx,
   onPlay,
 }: Props) {
+  const { t } = useTranslation();
   const setFocusRef = useRef<((key: string) => void) | null>(null);
 
   const windowDuration = windowEnd - windowStart;
@@ -66,7 +68,7 @@ export function EPGCell({
     >
       <div className="text-tiny text-text-tertiary truncate">{program.startFormatted}</div>
       <div className="text-small text-text-primary truncate font-medium">{program.title}</div>
-      {isLive && <div className="text-tiny text-accent mt-0.5">● Canlı</div>}
+      {isLive && <div className="text-tiny text-accent mt-0.5">● {t('epg.live')}</div>}
     </div>
   );
 }

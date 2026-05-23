@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
 import { useParentalStore } from '@/state/parentalStore';
 
@@ -9,10 +10,11 @@ interface Props {
 }
 
 export function PinEntryModal({ categoryName, onUnlock, onCancel }: Props) {
+  const { t } = useTranslation();
   const [pin, setPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const unlock = useParentalStore(s => s.unlockSession);
-  
+
   const { ref, focusKey } = useFocusable({
     focusKey: 'pin-entry-modal',
     isFocusBoundary: true,
@@ -24,7 +26,7 @@ export function PinEntryModal({ categoryName, onUnlock, onCancel }: Props) {
     if (ok) {
       onUnlock();
     } else {
-      setError('PIN hatalı');
+      setError(t('modal.parental.locked_wrong'));
       setPin('');
     }
   };
@@ -34,9 +36,9 @@ export function PinEntryModal({ categoryName, onUnlock, onCancel }: Props) {
       <div ref={ref as React.RefObject<HTMLDivElement>}
            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
         <div className="bg-bg-elevated border border-border-subtle rounded-lg p-6 w-96">
-          <h3 className="text-text-primary text-lg font-medium mb-2">Korumalı Kategori</h3>
+          <h3 className="text-text-primary text-lg font-medium mb-2">{t('modal.parental.locked_title')}</h3>
           <p className="text-text-secondary text-small mb-4">
-            "{categoryName}" kategorisini açmak için PIN girin
+            {t('modal.parental.locked_desc', { name: categoryName })}
           </p>
           
           <input
@@ -52,10 +54,10 @@ export function PinEntryModal({ categoryName, onUnlock, onCancel }: Props) {
           {error && <p className="text-red-400 text-tiny mb-3">{error}</p>}
           
           <div className="flex gap-2 justify-end">
-            <button onClick={onCancel} 
-                    className="px-4 py-2 text-text-secondary hover:text-text-primary">İptal</button>
+            <button onClick={onCancel}
+                    className="px-4 py-2 text-text-secondary hover:text-text-primary">{t('common.cancel')}</button>
             <button onClick={handleSubmit}
-                    className="px-4 py-2 bg-accent text-bg-base rounded font-medium">Aç</button>
+                    className="px-4 py-2 bg-accent text-bg-base rounded font-medium">{t('common.open')}</button>
           </div>
         </div>
       </div>

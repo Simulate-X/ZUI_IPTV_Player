@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useEpgStore } from '@/state/epgStore';
 
 type Props = { channelId: string };
 
 export function NowNextBadge({ channelId }: Props) {
+  const { t } = useTranslation();
   const epgChannelId = useEpgStore((s) => s.channelMatchMap.get(channelId));
   const nowNext = useEpgStore((s) => (epgChannelId ? s.nowNext.get(epgChannelId) : undefined));
 
@@ -20,7 +22,7 @@ export function NowNextBadge({ channelId }: Props) {
   return (
     <div className="mt-1.5 space-y-1 px-3 pb-2">
       <div className="text-tiny text-text-secondary truncate">
-        Şu an: {nowNext.current.title}
+        {t('channel_list.now')} {nowNext.current.title}
       </div>
       <div className="h-0.5 bg-bg-elevated rounded-full overflow-hidden">
         <div className="h-full bg-accent transition-none" style={{ width: `${progress * 100}%` }} />

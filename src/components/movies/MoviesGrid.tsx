@@ -7,7 +7,9 @@ import { Grid } from 'react-window';
 import type { GridImperativeAPI } from 'react-window';
 import type { CSSProperties, ReactElement } from 'react';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 import { useMoviesStore } from '@/state/moviesStore';
+import { useSettingsStore, LANGUAGE_LOCALES } from '@/state/settingsStore';
 import { useMoviePoster } from '@/hooks/useMoviePoster';
 import { MovieCard } from './MovieCard';
 import type { Movie, MovieSort } from '@/types/movie';
@@ -17,11 +19,11 @@ const GRID_COLS = 5;
 const GAP = 20;
 const CARD_ASPECT = 2 / 3;
 
-const SORT_LABELS: Record<MovieSort, string> = {
-  added: 'Yeni Eklenen',
-  rating: 'En Yüksek Puan',
-  year: 'En Yeni',
-  title: 'A → Z',
+const SORT_KEYS: Record<MovieSort, string> = {
+  added: 'grid.sort_added',
+  rating: 'grid.sort_rating',
+  year: 'grid.sort_year',
+  title: 'grid.sort_title',
 };
 
 interface Props {
@@ -180,13 +182,18 @@ function VirtualCell({
 // ─── Section header (category title + sort) ──────────────────────────────────
 
 function SectionHeader() {
+  const { t } = useTranslation();
+  const language = useSettingsStore(s => s.language);
+  const locale = LANGUAGE_LOCALES[language] ?? 'en-US';
+  const categorySearch = useMoviesStore(s => s.categorySearch);
   const activeCategoryLabel = useMoviesStore(s =>
-    s.categories.find(c => c.id === s.activeCategory)?.label ?? 'Tümü'
+    s.categories.find(c => c.id === s.activeCategory)?.label ?? t('grid.all')
   );
   const visibleCount = useMoviesStore(s => s.visibleMovies.length);
   const newThisWeek = useMoviesStore(s => s.newThisWeekCount ?? 0);
   const sortBy = useMoviesStore(s => s.sortBy);
   const cycleSort = useMoviesStore(s => s.cycleSort);
+  const isSearchMode = categorySearch.trim().length > 0;
 
   const { ref, focused } = useFocusable({
     focusKey: 'MOVIES_SORT',
@@ -196,19 +203,19 @@ function SectionHeader() {
   return (
     <div className="flex items-center gap-4 shrink-0">
       <h3 className="font-serif italic text-[24px] font-light text-white shrink-0">
-        {activeCategoryLabel}
+        {isSearchMode ? t('grid.search_results') : activeCategoryLabel}
       </h3>
       <span className="text-[11px] uppercase tracking-[0.3em] text-white/40 font-semibold shrink-0">
-        {visibleCount.toLocaleString('tr-TR')} başlık
+        {t('grid.title_count', { count: visibleCount.toLocaleString(locale) })}
       </span>
-      {newThisWeek > 0 && (
+      {!isSearchMode && newThisWeek > 0 && (
         <>
           <span className="w-px h-6 bg-white/[0.08] shrink-0" />
           <span className="text-[10px] uppercase tracking-[0.3em] text-white/40 font-semibold shrink-0">
-            Bu hafta
+            {t('grid.this_week')}
           </span>
           <span className="font-serif italic text-[14px] font-light text-[#E8B567]/85 shrink-0">
-            +{newThisWeek} yeni
+            {t('grid.new_count', { count: newThisWeek })}
           </span>
         </>
       )}
@@ -226,7 +233,7 @@ function SectionHeader() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="w-3.5 h-3.5">
           <path d="M3 6h18M6 12h12M10 18h4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <span>{SORT_LABELS[sortBy]}</span>
+        <span>{t(SORT_KEYS[sortBy])}</span>
       </button>
     </div>
   );
@@ -235,6 +242,7 @@ function SectionHeader() {
 // ─── Main grid ────────────────────────────────────────────────────────────────
 
 export function MoviesGrid({ focusedMovieId, onFocusMovie }: Props) {
+  const { t } = useTranslation();
   const movies = useMoviesStore(s => s.visibleMovies);
   const toggleFavorite = useMoviesStore(s => s.toggleFavorite);
   const playMovie = useMoviesStore(s => s.playMovie);
@@ -362,7 +370,7 @@ export function MoviesGrid({ focusedMovieId, onFocusMovie }: Props) {
       <>
         <SectionHeader />
         <div className="flex-1 grid place-items-center text-white/40 font-serif italic text-[16px]">
-          Bu kategoride film yok.
+          {t('grid.movies_empty')}
         </div>
       </>
     );

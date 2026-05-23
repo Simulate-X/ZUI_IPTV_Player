@@ -5,13 +5,14 @@
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 import { useUIStore } from '@/state/uiStore';
 import { usePlaylistStore } from '@/state/playlistStore';
 import { usePlayerStore } from '@/state/playerStore';
 import { useSourceStore } from '@/state/sourceStore';
 import { useParentalStore } from '@/state/parentalStore';
 import { useNowNext } from '@/state/epgStore';
-import { useToast } from '@/components/ui/Toast';
+import { useSettingsStore, LANGUAGE_LOCALES } from '@/state/settingsStore';
 import { getStrategiesForUrl } from '@/services/player.service';
 import type { PlayerStrategy } from '@/services/playerStrategies/PlayerStrategy';
 import type { Channel } from '@/types/channel';
@@ -21,42 +22,47 @@ import type { Source } from '@/types/source';
 
 const APP_VERSION = (import.meta.env.VITE_APP_VERSION as string | undefined) ?? '1.0.0';
 
-function getGreeting(date: Date): string {
+function getGreetingKey(date: Date): string {
   const h = date.getHours();
-  if (h >= 5  && h < 11) return 'Günaydın';
-  if (h >= 11 && h < 18) return 'İyi günler';
-  if (h >= 18 && h < 22) return 'İyi akşamlar';
-  return 'İyi geceler';
+  if (h >= 5  && h < 11) return 'home.greeting_morning';
+  if (h >= 11 && h < 18) return 'home.greeting_day';
+  if (h >= 18 && h < 22) return 'home.greeting_evening';
+  return 'home.greeting_night';
 }
 
-function formatDateStr(date: Date): string {
-  return date.toLocaleDateString('tr-TR', {
+function formatDateStr(date: Date, locale: string): string {
+  return date.toLocaleDateString(locale, {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
 }
 
-function formatTimeStr(date: Date): string {
-  return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false });
+function formatTimeStr(date: Date, locale: string, timeFormat: '24h' | '12h'): string {
+  if (timeFormat === '24h') {
+    return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+  return new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit', hour12: true }).format(date);
 }
 
-function formatRemainingMin(stopMs: number): string {
+type TFn = any;
+
+function formatRemainingMin(stopMs: number, t: TFn): string {
   const rem = Math.max(0, Math.round((stopMs - Date.now()) / 60_000));
   if (rem >= 60) {
     const h = Math.floor(rem / 60);
     const m = rem % 60;
-    return m > 0 ? `−${h}s ${m}dk kaldı` : `−${h}s kaldı`;
+    return m > 0 ? t('home.remaining_h_m', { h, m }) : t('home.remaining_h', { h });
   }
-  return `−${rem}dk kaldı`;
+  return t('home.remaining_m', { m: rem });
 }
 
-function formatRemainingShort(stopMs: number): string {
+function formatRemainingShort(stopMs: number, t: TFn): string {
   const rem = Math.max(0, Math.round((stopMs - Date.now()) / 60_000));
   if (rem >= 60) {
     const h = Math.floor(rem / 60);
     const m = rem % 60;
-    return m > 0 ? `−${h}s ${m}dk` : `−${h}s`;
+    return m > 0 ? t('home.remaining_h_m_short', { h, m }) : t('home.remaining_h_short', { h });
   }
-  return `−${rem}dk`;
+  return t('home.remaining_m_short', { m: rem });
 }
 
 const LETTER_COLORS = [
@@ -114,188 +120,47 @@ function useFeaturedChannels(
   }, [recentIds.length, allChannels.length, hiddenCategories.size, unlockedThisSession]);
 }
 
-// ─── Nav Icons ────────────────────────────────────────────────────────────────
-
-const HomeIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"
-    strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-    <path d="M3 11.5 12 4l9 7.5" /><path d="M5 10.5V20h14v-9.5" /><path d="M10 20v-5h4v5" />
-  </svg>
-);
-const LiveTVIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"
-    strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-    <rect x="2.5" y="5" width="19" height="13" rx="2" />
-    <path d="m7 2 5 3 5-3" />
-    <circle cx="18" cy="9" r="0.6" fill="currentColor" />
-  </svg>
-);
-const MoviesIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"
-    strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-    <rect x="2.5" y="3.5" width="19" height="17" rx="1.5" />
-    <path d="M2.5 8h3M2.5 12h3M2.5 16h3M18.5 8h3M18.5 12h3M18.5 16h3" />
-    <path d="M5.5 3.5v17M18.5 3.5v17" />
-  </svg>
-);
-const SeriesIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"
-    strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-    <circle cx="7.5" cy="12" r="5" /><circle cx="16.5" cy="12" r="5" />
-    <circle cx="7.5" cy="12" r="1" fill="currentColor" />
-    <circle cx="16.5" cy="12" r="1" fill="currentColor" />
-  </svg>
-);
-
-// ─── Nav Button ───────────────────────────────────────────────────────────────
-
-function NavButton({
-  focusKey: btnKey,
-  icon,
-  label,
-  active,
-  onPress,
-}: {
-  focusKey: string;
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  const { ref, focused } = useFocusable({ focusKey: btnKey, onEnterPress: onPress });
-
-  if (active) {
-    return (
-      <button
-        className="relative grid place-items-center w-12 h-12 rounded-full border border-[#E8B567]/55 bg-[#E8B567]/[0.10] text-[#E8B567] shadow-[0_0_28px_-10px_#E8B567]"
-        onClick={onPress}
-        aria-label={label}
-      >
-        {icon}
-        <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#E8B567] shadow-[0_0_8px_#E8B567]" />
-        <span className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 text-[9px] uppercase tracking-[0.3em] text-[#E8B567] whitespace-nowrap font-semibold">
-          {label}
-        </span>
-      </button>
-    );
-  }
-
-  return (
-    <button
-      ref={ref as React.RefObject<HTMLButtonElement>}
-      onClick={onPress}
-      aria-label={label}
-      className={[
-        'relative grid place-items-center w-12 h-12 rounded-full border transition-all',
-        focused
-          ? 'border-[#E8B567]/55 bg-[#E8B567]/[0.06] text-white scale-[1.05]'
-          : 'border-white/[0.08] text-white/55 hover:text-white hover:border-white/20',
-      ].join(' ')}
-    >
-      {icon}
-      <span className={[
-        'absolute top-full mt-1.5 left-1/2 -translate-x-1/2 text-[9px] uppercase tracking-[0.3em] whitespace-nowrap font-semibold',
-        focused ? 'text-[#E8B567]' : 'text-white/50',
-      ].join(' ')}>
-        {label}
-      </span>
-    </button>
-  );
-}
-
-// ─── Home Header ──────────────────────────────────────────────────────────────
-
-function HomeHeader({
-  navigate,
-  now,
-  v2Stub,
-}: {
-  navigate: (s: import('@/state/uiStore').Screen) => void;
-  now: Date;
-  v2Stub: () => void;
-}) {
-  const h = now.getHours();
-  const m = now.getMinutes();
-  const timeStr = `${h < 10 ? '0' : ''}${h}:${m < 10 ? '0' : ''}${m}`;
-  const days   = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
-  const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-  const dateStr = `${days[now.getDay()]} · ${now.getDate()} ${months[now.getMonth()]}`;
-
-  return (
-    <header className="relative h-[88px] px-12 flex items-center gap-6 shrink-0 z-20">
-      {/* Z logo + brand */}
-      <div className="flex items-center gap-3 shrink-0">
-        <div className="grid place-items-center w-11 h-11 rounded-xl border border-[#E8B567]/40 bg-[#E8B567]/[0.08] shadow-[0_0_28px_-10px_#E8B567]">
-          <span className="font-serif italic text-[20px] font-light text-[#E8B567] leading-none translate-y-[1px]">Z</span>
-        </div>
-        <div className="flex flex-col leading-none gap-1.5">
-          <span className="font-serif text-[26px] font-light tracking-tight text-white leading-none">ZUI</span>
-          <span className="text-[10px] uppercase tracking-[0.35em] text-white/45 font-semibold">IPTV Player</span>
-        </div>
-      </div>
-
-      {/* Nav icons */}
-      <nav className="flex items-center gap-8 ml-auto mr-2">
-        <NavButton focusKey="topnav-home"    icon={<HomeIcon />}   label="Anasayfa" active={true}  onPress={() => {/* already home */}} />
-        <NavButton focusKey="topnav-livetv"  icon={<LiveTVIcon />} label="Live TV"  active={false} onPress={() => navigate('channelList')} />
-        <NavButton focusKey="topnav-movies"  icon={<MoviesIcon />} label="Filmler"  active={false} onPress={() => navigate('movies')} />
-        <NavButton focusKey="topnav-series"  icon={<SeriesIcon />} label="Series"   active={false} onPress={v2Stub} />
-      </nav>
-
-      {/* Clock */}
-      <div className="flex items-center gap-6 pl-2 ml-2 border-l border-white/[0.06]">
-        <div className="flex flex-col items-end leading-tight">
-          <span className="font-serif text-[26px] font-light tabular-nums tracking-tight text-white">
-            {timeStr}
-          </span>
-          <span className="text-[11px] uppercase tracking-[0.3em] text-white/45 mt-0.5">
-            {dateStr}
-          </span>
-        </div>
-      </div>
-
-      {/* Bottom hairline */}
-      <div className="absolute left-12 right-12 bottom-0 h-px bg-white/[0.06]" />
-    </header>
-  );
-}
-
 // ─── Greeting Panel ───────────────────────────────────────────────────────────
 
 function GreetingPanel({ now, totalChannelCount }: { now: Date; totalChannelCount: number }) {
+  const { t }      = useTranslation();
+  const timeFormat = useSettingsStore(s => s.timeFormat);
+  const language   = useSettingsStore(s => s.language);
+  const locale     = LANGUAGE_LOCALES[language];
+
+  const statusText = totalChannelCount > 0
+    ? t('home.status_channels', { count: totalChannelCount.toLocaleString(locale) })
+    : t('home.status_ready');
+
   return (
     <div className="flex flex-col gap-4">
       {/* Kicker */}
       <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.35em] text-[#E8B567]/85 font-semibold">
         <span className="w-1.5 h-1.5 rounded-full bg-[#E8B567] shadow-[0_0_10px_#E8B567]" />
-        <span>Hoş geldin</span>
+        <span>{t('home.welcome')}</span>
         <span className="w-12 h-px bg-[#E8B567]/40" />
       </div>
 
       {/* Big greeting */}
       <h1 className="font-serif text-[88px] font-extralight tracking-[-0.02em] text-white leading-[0.95]">
-        {getGreeting(now)}<span className="font-serif italic font-extralight text-[#E8B567]">.</span>
+        {t(getGreetingKey(now))}<span className="font-serif italic font-extralight text-[#E8B567]">.</span>
       </h1>
 
       {/* Date + time row */}
       <div className="flex items-baseline gap-5 mt-2">
         <span className="text-[15px] tracking-wide text-white/65 font-medium">
-          {formatDateStr(now)}
+          {formatDateStr(now, locale)}
         </span>
         <span className="w-1 h-1 rounded-full bg-white/25" />
         <span className="font-serif text-[22px] font-light tabular-nums text-white tracking-tight">
-          {formatTimeStr(now)}
+          {formatTimeStr(now, locale, timeFormat)}
         </span>
       </div>
 
       {/* Status */}
       <div className="flex items-center gap-2.5 mt-3 text-[12px] uppercase tracking-[0.25em] text-white/45 font-semibold">
         <span className="w-1.5 h-1.5 rounded-full bg-[#7BC47F] shadow-[0_0_8px_#7BC47F]" />
-        <span>
-          {totalChannelCount > 0
-            ? `${totalChannelCount.toLocaleString('tr-TR')} kanal yüklendi · 2 sayfa aktif · 3 sayfa yapım aşamasında`
-            : 'Sistem hazır · 2 sayfa aktif · 3 sayfa yapım aşamasında'}
-        </span>
+        <span>{statusText}</span>
       </div>
     </div>
   );
@@ -304,6 +169,7 @@ function GreetingPanel({ now, totalChannelCount }: { now: Date; totalChannelCoun
 // ─── Resume Card ──────────────────────────────────────────────────────────────
 
 function ResumeCardEmpty({ onLiveTV }: { onLiveTV: () => void }) {
+  const { t } = useTranslation();
   const { ref, focused } = useFocusable({ focusKey: 'home-resume-livetv', onEnterPress: onLiveTV });
 
   return (
@@ -312,16 +178,16 @@ function ResumeCardEmpty({ onLiveTV }: { onLiveTV: () => void }) {
         <div className="absolute inset-0 bg-gradient-to-t from-[#0e0b0a] via-[#0e0b0a]/40 to-transparent" />
         <div className="absolute top-5 left-5 flex items-center gap-2.5 text-[10px] uppercase tracking-[0.35em] text-white font-semibold">
           <span className="w-2 h-2 rounded-full bg-[#E8B567]/40" />
-          <span>Kaldığın Yer</span>
+          <span>{t('home.where_left_off')}</span>
           <span className="ml-2 w-10 h-px bg-white/20" />
         </div>
       </div>
       <div className="relative px-7 py-4 -mt-16 z-10 flex flex-col gap-3">
-        <div className="text-[10px] uppercase tracking-[0.35em] text-white/45 font-semibold">İlk Kullanım</div>
+        <div className="text-[10px] uppercase tracking-[0.35em] text-white/45 font-semibold">{t('home.first_use')}</div>
         <h2 className="font-serif text-[28px] font-light tracking-tight text-white/60 leading-tight text-balance">
-          Henüz izlenen kanal yok.
+          {t('home.no_channel_watched')}
         </h2>
-        <p className="font-serif italic text-[14px] text-white/40">Live TV'ye geçerek başlayın.</p>
+        <p className="font-serif italic text-[14px] text-white/40">{t('home.start_live_tv')}</p>
         <div className="flex items-center gap-3 mt-1">
           <button
             ref={ref as React.RefObject<HTMLButtonElement>}
@@ -333,7 +199,7 @@ function ResumeCardEmpty({ onLiveTV }: { onLiveTV: () => void }) {
                 : 'border-white/15 text-white/85 hover:bg-white/[0.04]',
             ].join(' ')}
           >
-            Live TV'ye Geç
+            {t('home.go_live_tv')}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
               strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
               <path d="M5 12h14M13 5l7 7-7 7" />
@@ -391,6 +257,8 @@ function ResumeCard({
     };
   }, [channel?.id, channel?.streamUrl]);
 
+  const { t } = useTranslation();
+
   const { ref: continueRef, focused: continueFocused } = useFocusable({
     focusKey: 'home-resume-continue',
     onEnterPress: onContinue,
@@ -444,13 +312,13 @@ function ResumeCard({
         {/* Top-left: KALDIĞIN YER */}
         <div className="absolute top-5 left-5 flex items-center gap-2.5 text-[10px] uppercase tracking-[0.35em] text-white font-semibold">
           <span className="w-2 h-2 rounded-full bg-[#E8B567] shadow-[0_0_12px_#E8B567] animate-pulse" />
-          <span>Kaldığın Yer</span>
+          <span>{t('home.where_left_off')}</span>
           <span className="ml-2 w-10 h-px bg-white/40" />
         </div>
         {/* Top-right: remaining */}
         {current && (
           <div className="absolute top-5 right-5 font-serif italic text-[14px] font-light text-white/75">
-            {formatRemainingMin(current.stop)}
+            {formatRemainingMin(current.stop, t)}
           </div>
         )}
       </div>
@@ -502,7 +370,7 @@ function ResumeCard({
             <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
               <path d="M7 4v16l13-8z" />
             </svg>
-            Devam Et
+            {t('home.continue')}
           </button>
           <button
             ref={allRef as React.RefObject<HTMLButtonElement>}
@@ -514,7 +382,7 @@ function ResumeCard({
                 : 'border-white/15 text-white/85 hover:bg-white/[0.04] hover:text-white',
             ].join(' ')}
           >
-            Tüm Kanallar
+            {t('home.all_channels')}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
               strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
               <path d="M5 12h14M13 5l7 7-7 7" />
@@ -663,21 +531,23 @@ const SettingsSectionIcon = () => (
 function SectionsGrid({
   totalChannelCount,
   navigate,
-  v2Stub,
 }: {
   totalChannelCount: number;
   navigate: (s: import('@/state/uiStore').Screen) => void;
-  v2Stub: () => void;
 }) {
+  const { t }    = useTranslation();
+  const language = useSettingsStore(s => s.language);
+  const locale   = LANGUAGE_LOCALES[language];
+
   const channelSubtitle = totalChannelCount > 0
-    ? `${totalChannelCount.toLocaleString('tr-TR')} kanal · Türkçe + EN`
-    : '— kanal · Türkçe + EN';
+    ? t('home.channel_subtitle_count', { count: totalChannelCount.toLocaleString(locale) })
+    : t('home.channel_subtitle_empty');
 
   const sections: SectionDef[] = [
     {
       key: 'live-tv',
       icon: <LiveTVSectionIcon />,
-      title: 'Canlı TV',
+      title: t('nav.live'),
       subtitle: channelSubtitle,
       watermark: totalChannelCount > 0 ? String(totalChannelCount) : '',
       isActive: true,
@@ -686,32 +556,32 @@ function SectionsGrid({
     {
       key: 'movies',
       icon: <FilmsIcon />,
-      title: 'Filmler',
-      subtitle: 'VOD · Tüm filmler',
+      title: t('nav.movies'),
+      subtitle: t('home.movies_subtitle'),
       isActive: true,
       onPress: () => navigate('movies'),
     },
     {
       key: 'series',
       icon: <SeriesSectionIcon />,
-      title: 'Diziler',
-      subtitle: 'Yakında · v2.1',
-      badge: 'Yakında',
-      onPress: v2Stub,
+      title: t('nav.series'),
+      subtitle: t('home.series_subtitle'),
+      isActive: true,
+      onPress: () => navigate('series'),
     },
     {
       key: 'playlists',
       icon: <PlaylistIcon />,
-      title: 'Çalma Listeleri',
-      subtitle: 'Yakında · v2.2',
-      badge: 'Yakında',
-      onPress: v2Stub,
+      title: t('playlists.title'),
+      subtitle: t('home.playlists_subtitle'),
+      isActive: true,
+      onPress: () => navigate('playlists'),
     },
     {
       key: 'settings',
       icon: <SettingsSectionIcon />,
-      title: 'Ayarlar',
-      subtitle: '12 tercih',
+      title: t('nav.settings'),
+      subtitle: t('home.settings_subtitle'),
       isActive: true,
       onPress: () => navigate('settings'),
     },
@@ -720,9 +590,9 @@ function SectionsGrid({
   return (
     <div>
       <div className="flex items-baseline justify-between mb-3">
-        <h3 className="font-serif italic text-[24px] font-light text-white">Bölümler</h3>
+        <h3 className="font-serif italic text-[24px] font-light text-white">{t('home.sections_title')}</h3>
         <span className="text-[10px] uppercase tracking-[0.35em] text-white/40 font-semibold">
-          5 hedef · 2 aktif
+          {t('home.sections_count')}
         </span>
       </div>
       <div className="grid grid-cols-5 gap-5">
@@ -745,6 +615,7 @@ function FeaturedCard({
   idx: number;
   onPress: () => void;
 }) {
+  const { t } = useTranslation();
   const { ref, focused } = useFocusable({
     focusKey: `home-featured-${idx}`,
     onEnterPress: onPress,
@@ -787,7 +658,7 @@ function FeaturedCard({
       {/* Remaining */}
       {current && (
         <div className="shrink-0 text-[10px] tabular-nums uppercase tracking-[0.25em] text-[#E8B567]/85 font-semibold whitespace-nowrap">
-          {formatRemainingShort(current.stop)}
+          {formatRemainingShort(current.stop, t)}
         </div>
       )}
     </div>
@@ -818,14 +689,16 @@ function FeaturedSection({
     [navigate],
   );
 
+  const { t } = useTranslation();
+
   if (channels.length === 0) return null;
 
   return (
     <div>
       <div className="flex items-baseline justify-between mb-3">
-        <h3 className="font-serif italic text-[24px] font-light text-white">Şimdi Yayında</h3>
+        <h3 className="font-serif italic text-[24px] font-light text-white">{t('home.now_on_air')}</h3>
         <span className="text-[11px] uppercase tracking-[0.3em] text-white/40 font-semibold">
-          {channels.length} öne çıkan kanal
+          {t('home.featured_channels', { count: channels.length })}
         </span>
       </div>
       <div className="grid grid-cols-4 gap-3">
@@ -845,21 +718,22 @@ function FeaturedSection({
 // ─── Footer ───────────────────────────────────────────────────────────────────
 
 function HomeFooter({ activeSource }: { activeSource: Source | null }) {
+  const { t } = useTranslation();
   return (
     <div className="mt-auto pt-5 border-t border-white/[0.06] flex items-center justify-between shrink-0">
       <div className="flex items-baseline gap-4">
         <span className="text-[10px] uppercase tracking-[0.3em] text-white/40 font-semibold">
-          Güncel Liste
+          {t('home.current_list')}
         </span>
         <span className="font-serif text-[15px] font-light text-white/75 tabular-nums">
-          {activeSource?.name ?? 'Liste yok'}
+          {activeSource?.name ?? t('home.no_list')}
         </span>
         <span className="w-1 h-1 rounded-full bg-white/25" />
         <span className="text-[10px] uppercase tracking-[0.3em] text-white/40 font-semibold">
-          Süresi
+          {t('home.expires')}
         </span>
         <span className="font-serif text-[15px] font-light text-[#E8B567] tabular-nums">
-          Sınırsız
+          {t('home.unlimited')}
         </span>
       </div>
       <div className="text-[10px] uppercase tracking-[0.3em] text-white/30 font-semibold">
@@ -903,10 +777,6 @@ export function HomeScreen() {
     recentIds, allChannels, hiddenCategories, isProtected, unlockedThisSession,
   );
 
-  const v2Stub = useCallback(() => {
-    useToast.getState().show('v2 sürümünde aktif edilecektir');
-  }, []);
-
   const handleContinue = useCallback(() => {
     if (!lastChannel) {
       navigate('channelList');
@@ -947,9 +817,6 @@ export function HomeScreen() {
         <div className="pointer-events-none absolute -bottom-60 -left-40 w-[900px] h-[900px] rounded-full bg-[radial-gradient(circle,rgba(174,118,233,0.14),transparent_60%)] blur-3xl z-0" />
         <div className="pointer-events-none absolute inset-0 opacity-[0.025] mix-blend-overlay [background-image:radial-gradient(rgba(255,255,255,0.6)_1px,transparent_1px)] [background-size:3px_3px] z-0" />
 
-        {/* Own header (replaces global TopBar on Home) */}
-        <HomeHeader navigate={navigate} now={now} v2Stub={v2Stub} />
-
         {/* Main scroll area */}
         <div className="relative flex-1 overflow-hidden px-16 pt-6 pb-5 flex flex-col gap-6 z-10">
 
@@ -968,7 +835,6 @@ export function HomeScreen() {
           <SectionsGrid
             totalChannelCount={totalChannelCount}
             navigate={navigate}
-            v2Stub={v2Stub}
           />
 
           {/* Row 3: Featured channels */}

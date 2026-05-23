@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePlaylistStore } from '@/state/playlistStore';
 import { useEpgStore, useNowNext } from '@/state/epgStore';
 import { getStrategiesForUrl } from '@/services/player.service';
@@ -8,6 +9,7 @@ interface PreviewPaneProps {
 }
 
 export function PreviewPane({ focusedChannelId }: PreviewPaneProps) {
+  const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -53,7 +55,7 @@ export function PreviewPane({ focusedChannelId }: PreviewPaneProps) {
   if (!channel) {
     return (
       <div className="relative flex flex-col gap-6 overflow-hidden items-center justify-center text-white/35 text-[15px] tracking-wide">
-        Önizleme için bir kanal seçin
+        {t('channel_list.preview_select')}
       </div>
     );
   }
@@ -75,16 +77,10 @@ export function PreviewPane({ focusedChannelId }: PreviewPaneProps) {
         {/* Gradient overlay — cinematic fade */}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
 
-        {/* Big decorative channel number watermark */}
-        <span className="absolute -bottom-12 -right-6 font-serif text-[280px] leading-none font-light text-white/[0.05] select-none pointer-events-none">
-          {/* Extract stream number from id: xtream:src:NNN */}
-          {channel.id.split(':')[2] ?? ''}
-        </span>
-
         {/* LIVE badge — Aurora: text + dot + line */}
         <div className="absolute top-5 left-5 flex items-center gap-2.5 text-[11px] uppercase tracking-[0.35em] text-white font-medium">
           <span className="w-2 h-2 rounded-full bg-accent shadow-amber-glow" />
-          Şimdi Canlı
+          {t('channel_list.now_live')}
           <span className="ml-3 w-12 h-px bg-white/40" />
         </div>
 
@@ -131,14 +127,14 @@ export function PreviewPane({ focusedChannelId }: PreviewPaneProps) {
       <div className="flex items-end justify-between gap-6 px-1">
         <div>
           <div className="text-[10px] uppercase tracking-[0.35em] text-white/40">
-            Kanal · {channel.group ?? ''}
+            {t('channel_list.channel_label')} · {channel.group ?? ''}
           </div>
           {/* Serif large channel name */}
           <h3 className="font-serif text-[36px] font-light tracking-tight text-white leading-tight mt-1">
             {channel.name}
           </h3>
           <div className="text-[14px] text-white/55 mt-2 tracking-wide">
-            ★ Favori için OK uzun bas
+            {t('channel_list.fav_hint')}
           </div>
         </div>
 
@@ -150,14 +146,14 @@ export function PreviewPane({ focusedChannelId }: PreviewPaneProps) {
                 {getProgress(nowNext.current.start, nowNext.current.stop)}
                 <span className="text-[14px] text-white/50">%</span>
               </div>
-              <div className="text-[10px] uppercase tracking-[0.3em] text-white/40 mt-0.5">İlerleme</div>
+              <div className="text-[10px] uppercase tracking-[0.3em] text-white/40 mt-0.5">{t('channel_list.progress')}</div>
             </div>
             <div>
               <div className="font-serif text-[22px] font-light text-white tabular-nums">
                 —{getRemainingMins(nowNext.current.stop)}
-                <span className="text-[14px] text-white/50">dk</span>
+                <span className="text-[14px] text-white/50">{t('channel_list.min_abbr')}</span>
               </div>
-              <div className="text-[10px] uppercase tracking-[0.3em] text-white/40 mt-0.5">Kalan</div>
+              <div className="text-[10px] uppercase tracking-[0.3em] text-white/40 mt-0.5">{t('channel_list.remaining')}</div>
             </div>
           </div>
         )}
@@ -168,8 +164,8 @@ export function PreviewPane({ focusedChannelId }: PreviewPaneProps) {
         <div className="border-t border-border-subtle pt-6 flex flex-col gap-3">
           <div className="flex items-baseline justify-between mb-1">
             {/* Serif italic section label */}
-            <span className="font-serif italic text-[20px] font-light text-white">Sıradaki</span>
-            <span className="text-[10px] uppercase tracking-[0.3em] text-white/40">★ Rehberi Aç</span>
+            <span className="font-serif italic text-[20px] font-light text-white">{t('channel_list.upcoming')}</span>
+            <span className="text-[10px] uppercase tracking-[0.3em] text-white/40">{t('channel_list.open_guide')}</span>
           </div>
 
           {nowNext?.upcoming && nowNext.upcoming.length > 0

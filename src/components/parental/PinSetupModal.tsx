@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
 import { useParentalStore } from '@/state/parentalStore';
 import { verifyPin } from '@/services/pinHash';
@@ -16,20 +17,9 @@ interface Props {
   onVerified?: () => void;
 }
 
-const TITLES = {
-  verify:  'PIN Gerekli',
-  create: 'PIN Belirle',
-  change: 'PIN Değiştir',
-  remove: 'PIN Kaldır',
-};
-const SUBTITLES = {
-  verify:  'Ebeveyn ayarlarına erişmek için PIN\'inizi girin.',
-  create:  '4–6 haneli sayısal bir PIN belirleyin.',
-  change:  'Önce mevcut PIN\'inizi doğrulayın.',
-  remove:  'Kaldırmak için mevcut PIN\'i girin. Tüm korumalı kategoriler sıfırlanır.',
-};
 
 export function PinSetupModal({ mode, onClose, onVerified }: Props) {
+  const { t } = useTranslation();
   const [currentPin, setCurrentPin] = useState('');
   const [newPin,     setNewPin]     = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -53,19 +43,19 @@ export function PinSetupModal({ mode, onClose, onVerified }: Props) {
     try {
       // ── Verify (kapı modu) ───────────────────────────────────────────────────
       if (mode === 'verify') {
-        if (!currentPin) { setError('PIN gerekli'); return; }
+        if (!currentPin) { setError(t('modal.parental.err_required')); return; }
         const ok = await unlockSession(currentPin);
-        if (!ok) { setError('PIN yanlış'); return; }
+        if (!ok) { setError(t('modal.parental.err_wrong')); return; }
         onVerified?.();
         return;
       }
 
       // ── Mevcut PIN doğrulama (change / remove) ──────────────────────────────
       if (mode === 'change' || mode === 'remove') {
-        if (!pinHash) { setError('Kayıtlı PIN bulunamadı'); return; }
-        if (!currentPin) { setError('Mevcut PIN gerekli'); return; }
+        if (!pinHash) { setError(t('modal.parental.err_no_saved')); return; }
+        if (!currentPin) { setError(t('modal.parental.err_current_required')); return; }
         const valid = await verifyPin(currentPin, pinHash);
-        if (!valid) { setError('Mevcut PIN yanlış'); return; }
+        if (!valid) { setError(t('modal.parental.err_current_wrong')); return; }
       }
 
       // ── Kaldır ──────────────────────────────────────────────────────────────
@@ -76,15 +66,15 @@ export function PinSetupModal({ mode, onClose, onVerified }: Props) {
       }
 
       // ── Oluştur / Değiştir ──────────────────────────────────────────────────
-      if (newPin.length < 4)     { setError('PIN en az 4 haneli olmalı'); return; }
-      if (newPin !== confirmPin) { setError("Yeni PIN'ler eşleşmiyor");   return; }
+      if (newPin.length < 4)     { setError(t('modal.parental.err_too_short')); return; }
+      if (newPin !== confirmPin) { setError(t('modal.parental.err_mismatch'));   return; }
       if (mode === 'change' && newPin === currentPin) {
-        setError('Yeni PIN mevcut PIN ile aynı olamaz'); return;
+        setError(t('modal.parental.err_same')); return;
       }
       await setPinAction(newPin);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Hata oluştu');
+      setError(e instanceof Error ? e.message : t('modal.parental.err_generic'));
     } finally {
       setBusy(false);
     }
@@ -110,10 +100,10 @@ export function PinSetupModal({ mode, onClose, onVerified }: Props) {
         >
           {/* Header */}
           <h3 className="font-serif text-[24px] font-light text-white leading-tight mb-1">
-            {TITLES[mode]}
+            {t(`modal.parental.title_${mode}`)}
           </h3>
           <p className="font-serif italic text-[13px] text-white/40 mb-6 leading-snug">
-            {SUBTITLES[mode]}
+            {t(`modal.parental.subtitle_${mode}`)}
           </p>
 
           <div className="flex flex-col gap-4">
@@ -121,7 +111,7 @@ export function PinSetupModal({ mode, onClose, onVerified }: Props) {
             {needsCurrent && (
               <div>
                 <label className={labelCls}>
-                  {mode === 'verify' ? 'PIN' : 'Mevcut PIN'}
+                  {mode === 'verify' ? t('modal.parental.label_pin') : t('modal.parental.label_current')}
                 </label>
                 <input
                   type="password"
@@ -142,7 +132,7 @@ export function PinSetupModal({ mode, onClose, onVerified }: Props) {
             {needsNew && (
               <>
                 <div>
-                  <label className={labelCls}>Yeni PIN</label>
+                  <label className={labelCls}>{t('modal.parental.label_new')}</label>
                   <input
                     type="password"
                     inputMode="numeric"
@@ -157,7 +147,7 @@ export function PinSetupModal({ mode, onClose, onVerified }: Props) {
                   />
                 </div>
                 <div>
-                  <label className={labelCls}>PIN Tekrar</label>
+                  <label className={labelCls}>{t('modal.parental.label_confirm')}</label>
                   <input
                     type="password"
                     inputMode="numeric"
@@ -184,7 +174,7 @@ export function PinSetupModal({ mode, onClose, onVerified }: Props) {
               onClick={onClose}
               className="px-4 py-2 rounded-xl text-white/45 hover:text-white/70 text-[14px] transition-colors"
             >
-              İptal
+              {t('common.cancel')}
             </button>
             <button
               onClick={() => void handleSubmit()}
@@ -197,7 +187,7 @@ export function PinSetupModal({ mode, onClose, onVerified }: Props) {
                 busy ? 'opacity-50 cursor-not-allowed' : '',
               ].join(' ')}
             >
-              {busy ? '…' : mode === 'remove' ? "PIN'i Kaldır" : mode === 'verify' ? 'Giriş' : 'Kaydet'}
+              {busy ? '…' : mode === 'remove' ? t('modal.parental.btn_remove') : mode === 'verify' ? t('modal.parental.btn_verify') : t('common.save')}
             </button>
           </div>
         </div>

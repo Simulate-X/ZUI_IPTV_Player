@@ -4,150 +4,141 @@
 
 $ErrorActionPreference = "Stop"
 
-# nvm use symlink'i değiştirir ama PowerShell'in PATH hash cache'i eski kalır.
-# Bu helper, Machine + User PATH'lerini session'a yeniden yükler.
-# Ayrıca node.exe'nin bulunduğu dizini PATH'in başına prepend eder.
-function Refresh-Path {
-    $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
-    $userPath    = [Environment]::GetEnvironmentVariable("Path", "User")
-    $combined    = "$machinePath;$userPath"
-
-    # NVM_SYMLINK'i prepend et (çoğu nvm kurulumunda C:\nvm4w\nodejs veya C:\nvm\nodejs)
-    $nvmSymlink = $env:NVM_SYMLINK
-    if (-not $nvmSymlink) {
-        $nvmSymlink = [Environment]::GetEnvironmentVariable("NVM_SYMLINK", "Machine")
-    }
-    if ($nvmSymlink -and ($combined -notlike "*$nvmSymlink*")) {
-        $combined = "$nvmSymlink;$combined"
-    }
-    $env:Path = $combined
-}
-
-# node.exe'nin gerçek dizinini PATH'in başına ekle.
-# nvm switch sonrası node.exe zaten yeni versiyonu gösterir; npm.cmd aynı dizindedir.
-function Prepend-NodeDir {
-    $nodeExe = (Get-Command node -ErrorAction SilentlyContinue)
-    if ($nodeExe) {
-        $nodeDir = Split-Path $nodeExe.Source -Parent
-        if ($env:Path -notlike "$nodeDir*") {
-            $env:Path = "$nodeDir;$env:Path"
-        }
-        return $nodeDir
-    }
-    return $null
-}
-
 Write-Host ""
 Write-Host "=======================================" -ForegroundColor DarkGray
 Write-Host "  ZUI IPTV Player - Deploy Pipeline" -ForegroundColor Cyan
 Write-Host "=======================================" -ForegroundColor DarkGray
 Write-Host ""
 
-# ─── STEP 1: Node 24 for build ──────────────────────────────────────────────
+# ─── Yardımcı: NVM_HOME altındaki versiyonlu dizini döndürür ─────────────────
+# Symlink veya PATH cache sorunlarından bağımsız, doğrudan dosya sistemi kontrolü.
 
-Write-Host "-> [1/3] Checking Node 24 for Vite build..." -ForegroundColor Yellow
+function Get-NvmVersionDir {
+    param([string]$Ver)
+
+    # DIKKAT: $home PowerShell'in rezerve degiskeni — $nvmHomeDir kullaniyoruz.
+    $nvmHomeDir = $env:NVM_HOME
+    if (-not $nvmHomeDir) { $nvmHomeDir = [Environment]::GetEnvironmentVariable("NVM_HOME", "Machine") }
+    if (-not $nvmHomeDir) { $nvmHomeDir = [Environment]::GetEnvironmentVariable("NVM_HOME", "User") }
+
+    if ($nvmHomeDir) {
+        # nvm4w: C:\Users\...\AppData\Local\nvm\v16.20.2
+        foreach ($prefix in @("v", "")) {
+            $candidate = Join-Path $nvmHomeDir "$prefix$Ver"
+            if (Test-Path (Join-Path $candidate "node.exe")) {
+                return $candidate
+            }
+        }
+    }
+
+    # Fallback: NVM_SYMLINK (zaten switch sonrası doğru versiyona işaret eder)
+    $sym = $env:NVM_SYMLINK
+    if (-not $sym) { $sym = [Environment]::GetEnvironmentVariable("NVM_SYMLINK", "Machine") }
+    if (-not $sym) { $sym = [Environment]::GetEnvironmentVariable("NVM_SYMLINK", "User") }
+    if ($sym -and (Test-Path (Join-Path $sym "node.exe"))) {
+        return $sym
+    }
+
+    return $null
+}
+
+# ─── STEP 1: Node 24 ile TypeScript + Vite build ─────────────────────────────
+
+Write-Host "-> [1/3] Node 24 ile build..." -ForegroundColor Yellow
+
 $currentVer = ""
-try { $currentVer = node -v } catch {}
+try { $currentVer = & node -v 2>$null } catch {}
 
 if ($currentVer -notmatch "v24") {
     nvm use 24
     if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: nvm use 24" -ForegroundColor Red; exit 1 }
-    Refresh-Path
-    Prepend-NodeDir | Out-Null
+
+    $n24dir = Get-NvmVersionDir "24.15.0"
+    if (-not $n24dir) { $n24dir = Get-NvmVersionDir "24" }  # minor/patch fark varsa
+    if ($n24dir) {
+        $env:Path = "$n24dir;$env:Path"
+        Write-Host "   Node 24 dir: $n24dir" -ForegroundColor Gray
+    }
 } else {
-    Write-Host "   Already on Node $currentVer" -ForegroundColor Gray
+    Write-Host "   Zaten Node $currentVer uzerinde" -ForegroundColor Gray
 }
 
 # ─── STEP 2: Build ───────────────────────────────────────────────────────────
 
-Write-Host "-> [2/3] TypeScript check + Vite build" -ForegroundColor Yellow
+Write-Host "-> [2/3] TypeScript + Vite build" -ForegroundColor Yellow
 cmd.exe /c "npm run build"
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: build" -ForegroundColor Red; exit 1 }
 
-# ─── STEP 3: Switch to Node 16 for ares-* tools ──────────────────────────────
+# ─── STEP 3: Node 16 + ares-cli ile paketleme / kurulum / başlatma ───────────
 
 Write-Host ""
-Write-Host "-> [3/3] Checking Node 16.20.2 for webOS CLI..." -ForegroundColor Yellow
+Write-Host "-> [3/3] Node 16.20.2 ile webOS paketleme..." -ForegroundColor Yellow
 
-try { $currentVer = node -v } catch { $currentVer = "" }
+nvm use 16.20.2
+if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: nvm use 16.20.2" -ForegroundColor Red; exit 1 }
 
-if ($currentVer -notmatch "v16.20.2") {
-    nvm use 16.20.2
-    if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: nvm use 16.20.2" -ForegroundColor Red; exit 1 }
-    Refresh-Path
+# NVM_HOME üzerinden doğrudan versiyonlu dizine git — symlink / PATH cache'e güvenme
+$n16dir = Get-NvmVersionDir "16.20.2"
+
+if (-not $n16dir) {
+    Write-Host "" -ForegroundColor Red
+    Write-Host "FAIL: Node 16.20.2 dizini bulunamadi." -ForegroundColor Red
+    Write-Host "  NVM_HOME  : $env:NVM_HOME" -ForegroundColor DarkGray
+    Write-Host "  NVM_SYMLINK: $env:NVM_SYMLINK" -ForegroundColor DarkGray
+    exit 1
 }
 
-# node.exe'nin gerçek dizinini PATH'e ekle — npm.cmd aynı yerde
-$nodeDir = Prepend-NodeDir
-if ($nodeDir) {
-    Write-Host "   Node dir: $nodeDir" -ForegroundColor Gray
+Write-Host "   Node 16 dir: $n16dir" -ForegroundColor Gray
+# Bu dizini PATH'in BASINA ekle — ares-*.cmd ve node.exe buradan gelecek
+$env:Path = "$n16dir;$env:Path"
+
+# Dogrulama
+$nodeVerCheck = & "$n16dir\node.exe" -v 2>$null
+Write-Host "   node -v    : $nodeVerCheck" -ForegroundColor Gray
+
+# ─── 3a: Paketleme ───────────────────────────────────────────────────────────
+
+Write-Host "-> Packaging IPK (ares-package)..." -ForegroundColor Yellow
+
+$aresPkg = Join-Path $n16dir "ares-package.cmd"
+if (Test-Path $aresPkg) {
+    & $aresPkg dist -o dist-ipk
 } else {
-    Write-Host "FAIL: node.exe bulunamadi" -ForegroundColor Red; exit 1
+    cmd.exe /c "ares-package dist -o dist-ipk"
 }
+if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: ares-package" -ForegroundColor Red; exit 1 }
 
-# npm'i doğrula
-$npmExe = Get-Command npm -ErrorAction SilentlyContinue
-if (-not $npmExe) {
-    # Fallback: node.exe dizininde npm.cmd ara
-    $npmCandidate = Join-Path $nodeDir "npm.cmd"
-    if (Test-Path $npmCandidate) {
-        Write-Host "   npm.cmd bulundu: $npmCandidate" -ForegroundColor Gray
-        $npmExe = $npmCandidate
-    } else {
-        Write-Host "WARN: npm bulunamadi, ares araclari dogrudan cagirilacak" -ForegroundColor Yellow
-    }
+# ─── 3b: TV'ye kurulum ───────────────────────────────────────────────────────
+
+Write-Host "-> Installing to TV (ares-install)..." -ForegroundColor Yellow
+
+# IPK adini bul (version'a göre değişebilir)
+$ipkFile = Get-ChildItem "dist-ipk\*.ipk" -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $ipkFile) {
+    Write-Host "FAIL: dist-ipk klasorunde .ipk dosyasi bulunamadi" -ForegroundColor Red; exit 1
 }
+Write-Host "   IPK: $($ipkFile.Name)" -ForegroundColor Gray
 
-# ─── STEP 3a: Package ────────────────────────────────────────────────────────
-
-Write-Host "-> Packaging IPK (ares-package)" -ForegroundColor Yellow
-
-# Önce ares-package'ı doğrudan bulmaya çalış (global npm paketi)
-$aresPkg = Get-Command ares-package -ErrorAction SilentlyContinue
-if ($aresPkg) {
-    & ares-package dist -o dist-ipk
+$aresInst = Join-Path $n16dir "ares-install.cmd"
+if (Test-Path $aresInst) {
+    & $aresInst -d tv $ipkFile.FullName
 } else {
-    # Fallback: npm run package (npm.cmd varsa)
-    if ($npmExe -is [System.String]) {
-        & $npmExe run package
-    } else {
-        cmd.exe /c "npm run package"
-    }
+    cmd.exe /c "ares-install -d tv `"$($ipkFile.FullName)`""
 }
-if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: package" -ForegroundColor Red; exit 1 }
+if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: ares-install" -ForegroundColor Red; exit 1 }
 
-# ─── STEP 3b: Install ────────────────────────────────────────────────────────
+# ─── 3c: Uygulamayı başlat ───────────────────────────────────────────────────
 
-Write-Host "-> Installing to TV (ares-install)" -ForegroundColor Yellow
+Write-Host "-> Launching app (ares-launch)..." -ForegroundColor Yellow
 
-$aresInst = Get-Command ares-install -ErrorAction SilentlyContinue
-if ($aresInst) {
-    & ares-install -d tv dist-ipk/com.zui.player_1.0.0_all.ipk
+$aresLaunch = Join-Path $n16dir "ares-launch.cmd"
+if (Test-Path $aresLaunch) {
+    & $aresLaunch -d tv com.zui.player
 } else {
-    if ($npmExe -is [System.String]) {
-        & $npmExe run install:tv
-    } else {
-        cmd.exe /c "npm run install:tv"
-    }
+    cmd.exe /c "ares-launch -d tv com.zui.player"
 }
-if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: install:tv" -ForegroundColor Red; exit 1 }
-
-# ─── STEP 3c: Launch ─────────────────────────────────────────────────────────
-
-Write-Host "-> Launching app (ares-launch)" -ForegroundColor Yellow
-
-$aresLaunch = Get-Command ares-launch -ErrorAction SilentlyContinue
-if ($aresLaunch) {
-    & ares-launch -d tv com.zui.player
-} else {
-    if ($npmExe -is [System.String]) {
-        & $npmExe run launch
-    } else {
-        cmd.exe /c "npm run launch"
-    }
-}
-if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: launch" -ForegroundColor Red; exit 1 }
+if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: ares-launch" -ForegroundColor Red; exit 1 }
 
 Write-Host ""
-Write-Host "OK - Deploy complete. ZUI IPTV Player is running on TV." -ForegroundColor Green
+Write-Host "OK - Deploy tamamlandi. ZUI IPTV Player TV'de calisiyor." -ForegroundColor Green
 Write-Host ""

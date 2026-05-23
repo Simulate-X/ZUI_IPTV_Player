@@ -1,16 +1,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 import { useUIStore } from '@/state/uiStore';
 import { usePlaylistStore } from '@/state/playlistStore';
 import { useParentalStore } from '@/state/parentalStore';
-import { useLogoCacheStore } from '@/state/logoCacheStore';
-import { useSourceStore } from '@/state/sourceStore';
 import { useToast } from '@/components/ui/Toast';
-import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { PinSetupModal } from '@/components/parental/PinSetupModal';
-import { getDB } from '@/services/db';
-import { getUserInfo, type XtreamUserInfoResult } from '@/services/xtream.service';
-import type { XtreamCredentials } from '@/types/xtream';
+import { useCloudSyncConfigStore, getSupabaseConfig } from '@/state/cloudSyncConfigStore';
+import { useMoviesStore } from '@/state/moviesStore';
+import { useSeriesStore } from '@/state/seriesStore';
+import { useSettingsStore, LANGUAGE_NAMES, type Language } from '@/state/settingsStore';
 
 // ─── SVG Icons (28×28) ────────────────────────────────────────────────────────
 
@@ -31,13 +30,6 @@ const IconEyeOff = () => (
   </svg>
 );
 
-const IconUser = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
-    strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </svg>
-);
 
 const IconTrash = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
@@ -65,15 +57,6 @@ const IconClock = () => (
   </svg>
 );
 
-const IconBroadcast = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
-    strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
-    <path d="M1 6c0 0 5-4 11-4s11 4 11 4" />
-    <path d="M5 10c0 0 3-2 7-2s7 2 7 2" />
-    <path d="M9 14c0 0 1-1 3-1s3 1 3 1" />
-    <circle cx="12" cy="18" r="1" fill="currentColor" />
-  </svg>
-);
 
 const IconRefresh = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
@@ -95,6 +78,13 @@ const IconChevronLeft = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
     <path d="M15 18l-6-6 6-6" />
+  </svg>
+);
+
+const IconCloud = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+    strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
+    <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
   </svg>
 );
 
@@ -294,6 +284,7 @@ function ModalCloseBtn({ focusKey: btnKey, onPress, label = 'Kapat' }: { focusKe
 // ─── Modal: Canlı Kategorileri Gizle ─────────────────────────────────────────
 
 function HideCategoriesModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const allCategories = usePlaylistStore((s) => s.categories);
   const hiddenCategories = usePlaylistStore((s) => s.hiddenCategories);
   const toggleHidden = usePlaylistStore((s) => s.toggleHiddenCategory);
@@ -302,11 +293,11 @@ function HideCategoriesModal({ onClose }: { onClose: () => void }) {
     <ModalBase
       focusKey="HIDE_CAT_MODAL"
       initialFocus="hide-cat-close"
-      title="Canlı Kategorileri Gizle"
+      title={t('modal.hide_categories.title')}
       onClose={onClose}
     >
       <p className="font-serif italic text-[14px] text-white/45 mb-5">
-        Gizlenen kategoriler kanal listesinde görünmez. PIN gerekmez.
+        {t('modal.hide_categories.description')}
       </p>
       <div className="flex-1 overflow-y-auto flex flex-col gap-1 pr-1 min-h-0">
         {allCategories.map((cat) => {
@@ -335,75 +326,168 @@ function HideCategoriesModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── Modal: Xtream Hesap Bilgileri ───────────────────────────────────────────
+// ─── Modal: Film Kategorilerini Gizle ────────────────────────────────────────
 
-function XtreamInfoModal({ onClose }: { onClose: () => void }) {
-  const sources = useSourceStore((s) => s.sources);
-  const xtreamSrc = sources.find((s) => s.type === 'xtream');
-  const [info, setInfo] = useState<XtreamUserInfoResult | null>(null);
-  const [loading, setLoading] = useState(true);
+function HideVodCategoriesModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const allCategories = useMoviesStore((s) => s.categories);
+  const hiddenCategoryIds = useMoviesStore((s) => s.hiddenCategoryIds);
+  const toggleHidden = useMoviesStore((s) => s.toggleHiddenCategory);
 
-  useEffect(() => {
-    if (!xtreamSrc || xtreamSrc.type !== 'xtream') { setLoading(false); return; }
-    getUserInfo(xtreamSrc.config as XtreamCredentials)
-      .then((r) => setInfo(r))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const formatExpDate = (unix: number | null) => {
-    if (!unix) return 'Bilinmiyor';
-    return new Date(unix * 1000).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
-  };
-
-  const daysLeft = (unix: number | null): string | null => {
-    if (!unix) return null;
-    const d = Math.ceil((unix * 1000 - Date.now()) / 86400000);
-    return d < 0 ? 'Süresi Doldu' : `${d} gün kaldı`;
-  };
-
-  const creds = xtreamSrc?.config as XtreamCredentials | undefined;
+  const regulars = allCategories.filter(
+    (c) => c.id !== '__resume__' && c.id !== '__favorites__'
+  );
 
   return (
     <ModalBase
-      focusKey="XTREAM_MODAL"
-      initialFocus="xtream-close"
-      title="Xtream Hesap Bilgileri"
+      focusKey="HIDE_VOD_CAT_MODAL"
+      initialFocus="hide-vod-cat-close"
+      title={t('modal.hide_vod_categories.title')}
       onClose={onClose}
     >
-      {loading ? (
-        <p className="font-serif italic text-[15px] text-white/45 animate-pulse">Yükleniyor…</p>
-      ) : !xtreamSrc ? (
-        <p className="font-serif italic text-[15px] text-white/45">Xtream kaynağı bulunamadı.</p>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {[
-            { label: 'Sunucu', val: creds?.host ?? '—' },
-            { label: 'Kullanıcı', val: info?.username ?? creds?.username ?? '—' },
-            { label: 'Şifre', val: '••••••••••' },
-            { label: 'Durum', val: info?.status ?? 'Aktif', amber: info?.status === 'Active' },
-            { label: 'Bitiş Tarihi', val: formatExpDate(info?.expDate ?? null) },
-            ...(info?.expDate ? [{ label: '', val: daysLeft(info.expDate) ?? '', muted: true }] : []),
-            { label: 'Maks. Bağlantı', val: String(info?.maxConnections ?? 1) },
-          ].map(({ label, val, amber, muted }, i) => (
-            <div key={i} className="flex items-baseline justify-between gap-4 py-0.5 border-b border-white/[0.04] last:border-0">
-              {label ? (
-                <span className="text-[13px] text-white/40 shrink-0">{label}</span>
-              ) : <span />}
-              <span className={[
-                'font-mono text-[14px]',
-                amber ? 'text-[#E8B567]' : muted ? 'text-white/30 text-[12px]' : 'text-white/75',
-              ].join(' ')}>
-                {val}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-      <p className="mt-5 text-[11px] text-white/25 leading-relaxed">
-        Hesap bilgilerini düzenlemek için Kaynak Ekle akışını kullanın.
+      <p className="font-serif italic text-[14px] text-white/45 mb-5">
+        {t('modal.hide_vod_categories.description')}
       </p>
-      <div className="mt-5 flex justify-end">
-        <ModalCloseBtn focusKey="xtream-close" onPress={onClose} />
+      <div className="flex-1 overflow-y-auto flex flex-col gap-1 pr-1 min-h-0">
+        {regulars.length === 0 && (
+          <p className="font-serif italic text-[14px] text-white/35 px-3 py-4">
+            {t('modal.hide_vod_categories.not_loaded')}
+          </p>
+        )}
+        {regulars.map((cat) => {
+          const isHidden = hiddenCategoryIds.includes(cat.id);
+          return (
+            <label
+              key={cat.id}
+              className="flex items-center gap-4 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-white/[0.04] transition-colors"
+            >
+              <input
+                type="checkbox"
+                checked={isHidden}
+                onChange={() => toggleHidden(cat.id)}
+                className="w-4 h-4 accent-[#E8B567] rounded"
+              />
+              <span className="flex-1 text-[16px] text-white/80">{cat.label}</span>
+              <span className="font-serif text-[14px] font-light text-white/35 tabular-nums">{cat.count}</span>
+            </label>
+          );
+        })}
+      </div>
+      <div className="mt-6 flex justify-end">
+        <ModalCloseBtn focusKey="hide-vod-cat-close" onPress={onClose} />
+      </div>
+    </ModalBase>
+  );
+}
+
+// ─── Modal: Dizi Kategorilerini Gizle ────────────────────────────────────────
+
+function HideSeriesCategoriesModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const allCategories = useSeriesStore((s) => s.categories);
+  const hiddenCategoryIds = useSeriesStore((s) => s.hiddenCategoryIds);
+  const toggleHidden = useSeriesStore((s) => s.toggleHiddenCategory);
+
+  const regulars = allCategories.filter(
+    (c) => c.id !== '__resume__' && c.id !== '__watchlist__'
+  );
+
+  return (
+    <ModalBase
+      focusKey="HIDE_SERIES_CAT_MODAL"
+      initialFocus="hide-series-cat-close"
+      title={t('modal.hide_series_categories.title')}
+      onClose={onClose}
+    >
+      <p className="font-serif italic text-[14px] text-white/45 mb-5">
+        {t('modal.hide_series_categories.description')}
+      </p>
+      <div className="flex-1 overflow-y-auto flex flex-col gap-1 pr-1 min-h-0">
+        {regulars.length === 0 && (
+          <p className="font-serif italic text-[14px] text-white/35 px-3 py-4">
+            {t('modal.hide_series_categories.not_loaded')}
+          </p>
+        )}
+        {regulars.map((cat) => {
+          const isHidden = hiddenCategoryIds.includes(cat.id);
+          return (
+            <label
+              key={cat.id}
+              className="flex items-center gap-4 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-white/[0.04] transition-colors"
+            >
+              <input
+                type="checkbox"
+                checked={isHidden}
+                onChange={() => toggleHidden(cat.id)}
+                className="w-4 h-4 accent-[#E8B567] rounded"
+              />
+              <span className="flex-1 text-[16px] text-white/80">{cat.label}</span>
+              <span className="font-serif text-[14px] font-light text-white/35 tabular-nums">{cat.count}</span>
+            </label>
+          );
+        })}
+      </div>
+      <div className="mt-6 flex justify-end">
+        <ModalCloseBtn focusKey="hide-series-cat-close" onPress={onClose} />
+      </div>
+    </ModalBase>
+  );
+}
+
+// ─── Modal: Dil Seçimi ───────────────────────────────────────────────────────
+
+const LANGUAGES: { code: Language; name: string; tag: string }[] = [
+  { code: 'tr', name: 'Türkçe',   tag: 'TR' },
+  { code: 'en', name: 'English',  tag: 'EN' },
+  { code: 'de', name: 'Deutsch',  tag: 'DE' },
+  { code: 'fr', name: 'Français', tag: 'FR' },
+  { code: 'es', name: 'Español',  tag: 'ES' },
+];
+
+function LanguageModal({ onClose }: { onClose: () => void }) {
+  const { t }   = useTranslation();
+  const { language, setLanguage } = useSettingsStore();
+
+  return (
+    <ModalBase
+      focusKey="LANGUAGE_MODAL"
+      initialFocus="lang-modal-close"
+      title={t('modal.language.title')}
+      onClose={onClose}
+    >
+      <div className="flex flex-col gap-2 mb-6">
+        {LANGUAGES.map((lang) => {
+          const isSelected = language === lang.code;
+          return (
+            <button
+              key={lang.code}
+              onClick={() => { setLanguage(lang.code); onClose(); }}
+              className={[
+                'flex items-center gap-4 px-4 py-3.5 rounded-xl text-left transition-all',
+                isSelected
+                  ? 'bg-[#E8B567]/[0.12] border border-[#E8B567]/40 text-[#E8B567]'
+                  : 'bg-white/[0.03] border border-white/[0.06] text-white/75 hover:bg-white/[0.06] hover:text-white',
+              ].join(' ')}
+            >
+              <span className={[
+                'shrink-0 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-1 rounded',
+                isSelected ? 'bg-[#E8B567]/20 text-[#E8B567]' : 'bg-white/[0.06] text-white/40',
+              ].join(' ')}>
+                {lang.tag}
+              </span>
+              <span className="flex-1 text-[17px] font-medium">{lang.name}</span>
+              {isSelected && (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                  strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 shrink-0">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex justify-end">
+        <ModalCloseBtn focusKey="lang-modal-close" onPress={onClose} label={t('modal.close')} />
       </div>
     </ModalBase>
   );
@@ -422,6 +506,7 @@ function ParentalDetailModal({
   onChangePin: () => void;
   onRemovePin: () => void;
 }) {
+  const { t } = useTranslation();
   const pinHash           = useParentalStore((s) => s.pinHash);
   const protectedCategories = useParentalStore((s) => s.protectedCategories);
   const toggleProtected   = useParentalStore((s) => s.toggleProtected);
@@ -432,13 +517,13 @@ function ParentalDetailModal({
     <ModalBase
       focusKey="PARENTAL_MODAL"
       initialFocus="parental-close"
-      title="Ebeveyn Kontrolü"
+      title={t('modal.parental.title')}
       onClose={onClose}
     >
       <p className="font-serif italic text-[14px] text-white/45 mb-6">
         {pinHash
-          ? 'PIN aktif. Korumalı kategorilere erişmek için PIN gerekir.'
-          : 'PIN henüz belirlenmemiş.'}
+          ? t('modal.parental.pin_active')
+          : t('modal.parental.pin_not_set')}
       </p>
       <div className="flex flex-wrap gap-3 mb-6">
         {!pinHash ? (
@@ -447,7 +532,7 @@ function ParentalDetailModal({
             onClick={onCreatePin}
             className="px-4 py-2 rounded-xl bg-[#E8B567]/15 border border-[#E8B567]/35 text-[#E8B567] text-[14px] font-medium hover:bg-[#E8B567]/25 transition-colors"
           >
-            PIN Belirle
+            {t('modal.parental.set_pin')}
           </button>
         ) : (
           /* ── PIN varken: Değiştir + Kaldır + Otomatik ── */
@@ -456,26 +541,26 @@ function ParentalDetailModal({
               onClick={onChangePin}
               className="px-4 py-2 rounded-xl bg-[#E8B567]/15 border border-[#E8B567]/35 text-[#E8B567] text-[14px] font-medium hover:bg-[#E8B567]/25 transition-colors"
             >
-              PIN Değiştir
+              {t('modal.parental.change_pin')}
             </button>
             <button
               onClick={onRemovePin}
               className="px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-[14px] hover:bg-red-500/20 transition-colors"
             >
-              PIN Kaldır
+              {t('modal.parental.remove_pin')}
             </button>
             <button
               onClick={() => void autoDetect(allCategories.map((c) => c.name))}
               className="px-4 py-2 rounded-xl bg-white/[0.06] text-white/60 text-[14px] hover:bg-white/[0.1] transition-colors"
             >
-              Otomatik İşaretle
+              {t('modal.parental.auto_mark')}
             </button>
           </>
         )}
       </div>
       {pinHash && (
         <div className="flex-1 overflow-y-auto flex flex-col gap-1 pr-1 min-h-0">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-white/30 mb-2">Korumalı Kategoriler</p>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-white/30 mb-2">{t('modal.parental.protected_categories')}</p>
           {allCategories.map((cat) => (
             <label
               key={cat.name}
@@ -496,6 +581,124 @@ function ParentalDetailModal({
       <div className="mt-6 flex justify-end">
         <ModalCloseBtn focusKey="parental-close" onPress={onClose} />
       </div>
+    </ModalBase>
+  );
+}
+
+// ─── Modal: Cloud Sync Yapılandırması ─────────────────────────────────────────
+
+function CloudSyncConfigModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const { runtimeUrl, runtimeAnonKey, setConfig, clearConfig } = useCloudSyncConfigStore();
+  const current = getSupabaseConfig();
+
+  const [url,     setUrl]     = useState(runtimeUrl);
+  const [anonKey, setAnonKey] = useState(runtimeAnonKey);
+  const [saved,   setSaved]   = useState(false);
+
+  const isEnvConfigured =
+    !runtimeUrl && !runtimeAnonKey && current !== null;
+
+  const handleSave = () => {
+    const trimUrl = url.trim();
+    const trimKey = anonKey.trim();
+    if (!trimUrl || !trimKey) {
+      useToast.getState().show(t('modal.cloud_sync.err_required'));
+      return;
+    }
+    if (!trimUrl.startsWith('https://')) {
+      useToast.getState().show(t('modal.cloud_sync.err_https'));
+      return;
+    }
+    setConfig(trimUrl, trimKey);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+
+  const handleClear = () => {
+    clearConfig();
+    setUrl('');
+    setAnonKey('');
+    useToast.getState().show(t('modal.cloud_sync.cleared'));
+  };
+
+  return (
+    <ModalBase
+      focusKey="CLOUD_SYNC_MODAL"
+      initialFocus="cloud-sync-close"
+      title={t('modal.cloud_sync.title')}
+      onClose={onClose}
+    >
+      <p className="font-serif italic text-[13px] text-white/40 mb-5 leading-relaxed">
+        {t('modal.cloud_sync.description')}
+      </p>
+
+      {isEnvConfigured && (
+        <div className="mb-5 flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-emerald-500/[0.07] border border-emerald-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399] shrink-0" />
+          <span className="text-[12px] text-emerald-400/80">
+            {t('modal.cloud_sync.env_active')}
+          </span>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-4 mb-5">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] uppercase tracking-[0.3em] text-white/30 font-semibold">
+            {t('modal.cloud_sync.url_label')}
+          </label>
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://your-project.supabase.co"
+            className="w-full px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
+                       text-[14px] text-white/80 placeholder-white/20 outline-none
+                       focus:border-[#E8B567]/35 focus:bg-[#E8B567]/[0.03] transition-colors font-mono"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] uppercase tracking-[0.3em] text-white/30 font-semibold">
+            {t('modal.cloud_sync.key_label')}
+          </label>
+          <input
+            value={anonKey}
+            onChange={(e) => setAnonKey(e.target.value)}
+            placeholder="sb_publishable_…"
+            className="w-full px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08]
+                       text-[14px] text-white/80 placeholder-white/20 outline-none
+                       focus:border-[#E8B567]/35 focus:bg-[#E8B567]/[0.03] transition-colors font-mono"
+          />
+        </div>
+      </div>
+
+      {saved && (
+        <div className="mb-4 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/[0.07] border border-emerald-500/20 text-[13px] text-emerald-400/80">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 shrink-0">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+          {t('modal.cloud_sync.saved')}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-3 mt-2">
+        {(runtimeUrl || runtimeAnonKey) && (
+          <button
+            onClick={handleClear}
+            className="px-4 py-2 rounded-xl text-[13px] text-red-400/70 border border-red-500/15 bg-red-500/[0.05] hover:bg-red-500/10 transition-colors"
+          >
+            {t('modal.cloud_sync.clear')}
+          </button>
+        )}
+        <div className={['flex gap-3 ml-auto'].join(' ')}>
+          <ModalCloseBtn focusKey="cloud-sync-close" onPress={onClose} />
+          <ModalCloseBtn focusKey="cloud-sync-save" onPress={handleSave} label={t('modal.cloud_sync.save')} />
+        </div>
+      </div>
+
+      <p className="mt-5 text-[10px] text-white/20 leading-relaxed">
+        {t('modal.cloud_sync.anon_note')}
+      </p>
     </ModalBase>
   );
 }
@@ -522,17 +725,20 @@ function useDeviceInfo() {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 type Modal =
-  | 'parental-unlock'   // PIN kapısı — önce burası açılır
-  | 'parental-detail'   // PIN doğrulandıktan sonra
-  | 'parental-setup'    // create
-  | 'parental-change'   // change (mevcut + yeni)
-  | 'parental-remove'   // remove (mevcut doğrula → sil)
-  | 'hide-categories'
-  | 'xtream-info'
-  | 'clear-cache-confirm'
+  | 'parental-unlock'        // PIN kapısı — önce burası açılır
+  | 'parental-detail'        // PIN doğrulandıktan sonra
+  | 'parental-setup'         // create
+  | 'parental-change'        // change (mevcut + yeni)
+  | 'parental-remove'        // remove (mevcut doğrula → sil)
+  | 'hide-categories'        // Canlı TV kategorileri
+  | 'hide-vod-categories'    // Film kategorileri
+  | 'hide-series-categories' // Dizi kategorileri
+  | 'language'               // Dil seçimi
+  | 'cloud-sync'
   | null;
 
 export function SettingsScreen() {
+  const { t }                = useTranslation();
   const navigate             = useUIStore((s) => s.navigate);
   const pinHash              = useParentalStore((s) => s.pinHash);
   const unlockedThisSession  = useParentalStore((s) => s.unlockedThisSession);
@@ -540,27 +746,43 @@ export function SettingsScreen() {
   const hiddenCategories     = usePlaylistStore((s) => s.hiddenCategories);
   const { mac, key: deviceKey } = useDeviceInfo();
   const [modal, setModal] = useState<Modal>(null);
+  const { timeFormat, setTimeFormat, language } = useSettingsStore();
 
   const { ref, focusKey, setFocus } = useFocusable({ focusKey: 'SETTINGS_SCREEN' });
 
   useEffect(() => { setTimeout(() => setFocus('settings-card-privacy-0'), 80); }, [setFocus]);
 
-  const v2Stub = useCallback(() => { useToast.getState().show('v2 sürümünde aktif edilecektir'); }, []);
+  const v2Stub = useCallback(() => { useToast.getState().show(t('settings.v2_coming')); }, [t]);
 
-  const handleClearCache = async () => {
-    try {
-      const db = await getDB();
-      const epgKeys = await db.getAllKeys('epg-programs');
-      for (const k of epgKeys) await db.delete('epg-programs', k);
-      await db.clear('logoCache');
-      useLogoCacheStore.setState({ cache: new Map() });
-      useToast.getState().show('Önbellek temizlendi');
-    } catch { useToast.getState().show('Önbellek temizlenemedi'); }
-    setModal(null);
-  };
+  // ── Geçmiş temizleme ─────────────────────────────────────────────────────────
+
+  const handleClearChannelHistory = useCallback(() => {
+    usePlaylistStore.setState({ recentIds: [] });
+    usePlaylistStore.getState().recomputeVisibility();
+    useToast.getState().show(t('settings.history_channels.cleared'));
+  }, [t]);
+
+  const handleClearMovieHistory = useCallback(() => {
+    useMoviesStore.setState({ watchProgress: {} });
+    useMoviesStore.getState()._updateSpecials();
+    useMoviesStore.getState()._recompute();
+    useToast.getState().show(t('settings.history_movies.cleared'));
+  }, [t]);
+
+  const handleClearSeriesHistory = useCallback(() => {
+    useSeriesStore.setState({ watchProgress: {}, currentEpisode: {} });
+    useSeriesStore.getState()._updateSpecials();
+    useSeriesStore.getState()._recompute();
+    useToast.getState().show(t('settings.history_series.cleared'));
+  }, [t]);
 
   // ── Dynamic values ──────────────────────────────────────────────────────────
   const hiddenCount = hiddenCategories.size;
+  const hiddenVodCount = useMoviesStore((s) => s.hiddenCategoryIds).length;
+  const hiddenSeriesCount = useSeriesStore((s) => s.hiddenCategoryIds).length;
+  const recentCount = usePlaylistStore((s) => s.recentIds).length;
+  const watchedMovieCount = useMoviesStore((s) => Object.keys(s.watchProgress).length);
+  const watchedSeriesCount = useSeriesStore((s) => Object.keys(s.watchProgress).length);
 
   type FullCard = {
     id: string;
@@ -571,84 +793,85 @@ export function SettingsScreen() {
     onPress: () => void;
   };
 
-  const privacyCards: FullCard[] = [
+  // ── Gizlilik & Görünürlük — satır 1: kontroller ──────────────────────────────
+  const privacyRow1Cards: FullCard[] = [
     {
       id: 'privacy-0',
       icon: <IconLock />,
-      title: 'Ebeveyn Kontrolü',
-      subtitle: pinHash ? 'PIN gerekli' : 'Devre dışı',
-      badge: { label: pinHash ? 'AÇIK' : 'KAPALI', variant: pinHash ? 'on' : 'off' },
+      title: t('settings.parental.title'),
+      subtitle: pinHash ? t('settings.parental.enabled') : t('settings.parental.disabled'),
+      badge: { label: pinHash ? t('settings.badge.on') : t('settings.badge.off'), variant: pinHash ? 'on' : 'off' },
       onPress: () => {
         if (!pinHash)              { setModal('parental-setup');  return; }
         if (unlockedThisSession)   { setModal('parental-detail'); return; }
-        setModal('parental-unlock');   // PIN doğrulaması gerekiyor
+        setModal('parental-unlock');
       },
     },
     {
       id: 'privacy-1',
-      icon: <IconEyeOff />,
-      title: 'Canlı Kategorileri Gizle',
-      subtitle: hiddenCount > 0 ? `${hiddenCount} kategori gizli` : 'Tümü görünür',
-      badge: { label: hiddenCount > 0 ? 'AÇIK' : 'KAPALI', variant: hiddenCount > 0 ? 'on' : 'off' },
-      onPress: () => setModal('hide-categories'),
+      icon: <IconGlobe />,
+      title: t('settings.language.title'),
+      subtitle: LANGUAGE_NAMES[language],
+      onPress: () => setModal('language'),
     },
     {
       id: 'privacy-2',
-      icon: <IconUser />,
-      title: 'Xtream Hesap Bilgileri',
-      subtitle: 'Sunucu & hesap detayları',
-      onPress: () => setModal('xtream-info'),
+      icon: <IconSubtitle />,
+      title: t('settings.subtitle_settings.title'),
+      subtitle: t('settings.subtitle_settings.subtitle'),
+      onPress: v2Stub,
     },
+  ];
+
+  // ── Gizlilik & Görünürlük — satır 2: kategori gizleme ────────────────────────
+  const hideCategoryCards: FullCard[] = [
     {
       id: 'privacy-3',
-      icon: <IconTrash />,
-      title: 'Önbelleği Temizle',
-      subtitle: 'EPG ve logo önbelleği',
-      onPress: () => setModal('clear-cache-confirm'),
+      icon: <IconEyeOff />,
+      title: t('settings.hide_live.title'),
+      subtitle: hiddenCount > 0 ? t('settings.hide_live.hidden_count', { count: hiddenCount }) : t('settings.hide_live.all_visible'),
+      badge: { label: hiddenCount > 0 ? t('settings.badge.on') : t('settings.badge.off'), variant: hiddenCount > 0 ? 'on' : 'off' },
+      onPress: () => setModal('hide-categories'),
     },
     {
       id: 'privacy-4',
       icon: <IconEyeOff />,
-      title: 'Vod Kategorilerini Gizle',
-      subtitle: 'Tümü görünür',
-      badge: { label: 'KAPALI', variant: 'off' },
-      onPress: v2Stub,
+      title: t('settings.hide_movies.title'),
+      subtitle: hiddenVodCount > 0 ? t('settings.hide_movies.hidden_count', { count: hiddenVodCount }) : t('settings.hide_movies.all_visible'),
+      badge: { label: hiddenVodCount > 0 ? t('settings.badge.on') : t('settings.badge.off'), variant: hiddenVodCount > 0 ? 'on' : 'off' },
+      onPress: () => setModal('hide-vod-categories'),
     },
     {
       id: 'privacy-5',
       icon: <IconEyeOff />,
-      title: 'Dizi Kategorilerini Gizle',
-      subtitle: 'Tümü görünür',
-      badge: { label: 'KAPALI', variant: 'off' },
-      onPress: v2Stub,
+      title: t('settings.hide_series.title'),
+      subtitle: hiddenSeriesCount > 0 ? t('settings.hide_series.hidden_count', { count: hiddenSeriesCount }) : t('settings.hide_series.all_visible'),
+      badge: { label: hiddenSeriesCount > 0 ? t('settings.badge.on') : t('settings.badge.off'), variant: hiddenSeriesCount > 0 ? 'on' : 'off' },
+      onPress: () => setModal('hide-series-categories'),
     },
   ];
 
   const historyCards: FullCard[] = [
     {
       id: 'history-0',
-      icon: <IconGlobe />,
-      title: 'Dili Değiştir',
-      subtitle: 'Türkçe',
-      onPress: v2Stub,
+      icon: <IconTrash />,
+      title: t('settings.history_channels.title'),
+      subtitle: recentCount > 0 ? t('settings.history_channels.count', { count: recentCount }) : t('settings.history_channels.empty'),
+      onPress: handleClearChannelHistory,
     },
     {
       id: 'history-1',
       icon: <IconTrash />,
-      title: 'Geçmiş Kanallarını Temizle',
-      onPress: v2Stub,
+      title: t('settings.history_movies.title'),
+      subtitle: watchedMovieCount > 0 ? t('settings.history_movies.count', { count: watchedMovieCount }) : t('settings.history_movies.empty'),
+      onPress: handleClearMovieHistory,
     },
     {
       id: 'history-2',
       icon: <IconTrash />,
-      title: 'Geçmiş Filmleri Temizle',
-      onPress: v2Stub,
-    },
-    {
-      id: 'history-3',
-      icon: <IconTrash />,
-      title: 'Geçmiş Dizileri Temizle',
-      onPress: v2Stub,
+      title: t('settings.history_series.title'),
+      subtitle: watchedSeriesCount > 0 ? t('settings.history_series.count', { count: watchedSeriesCount }) : t('settings.history_series.empty'),
+      onPress: handleClearSeriesHistory,
     },
   ];
 
@@ -656,30 +879,16 @@ export function SettingsScreen() {
     {
       id: 'format-0',
       icon: <IconClock />,
-      title: 'Zaman Biçimi',
-      subtitle: '24 saat',
-      onPress: v2Stub,
-    },
-    {
-      id: 'format-1',
-      icon: <IconBroadcast />,
-      title: 'Canlı Yayın Formatı',
-      subtitle: 'HLS · Otomatik',
-      onPress: v2Stub,
+      title: t('settings.time_format.title'),
+      subtitle: t(timeFormat === '24h' ? 'settings.time_format.value_24h' : 'settings.time_format.value_12h'),
+      onPress: () => setTimeFormat(timeFormat === '24h' ? '12h' : '24h'),
     },
     {
       id: 'format-2',
       icon: <IconRefresh />,
-      title: 'Otomatik Yenileme',
-      subtitle: 'Açık',
-      badge: { label: 'AÇIK', variant: 'on' },
-      onPress: v2Stub,
-    },
-    {
-      id: 'format-3',
-      icon: <IconSubtitle />,
-      title: 'Altyazı Ayarları',
-      subtitle: 'Türkçe · Orta',
+      title: t('settings.auto_refresh.title'),
+      subtitle: t('settings.auto_refresh.subtitle'),
+      badge: { label: t('settings.badge.on'), variant: 'on' },
       onPress: v2Stub,
     },
   ];
@@ -697,19 +906,34 @@ export function SettingsScreen() {
           <BackButton focusKey="settings-back" onPress={() => navigate('home')} />
           <div className="flex flex-col leading-none">
             <span className="text-[11px] uppercase tracking-[0.35em] text-[#E8B567]/85 font-semibold mb-2">
-              Tercihler · Versiyon 2.6
+              {t('settings.subtitle')} · Versiyon 2.6
             </span>
             <span className="font-serif text-[56px] font-light tracking-tight text-white leading-none">
-              Ayarlar
+              {t('settings.title')}
             </span>
           </div>
         </div>
 
         {/* ─── Gizlilik & Görünürlük ───────────────────────────────────────── */}
         <div>
-          <SectionHeader label="Gizlilik & Görünürlük" />
-          <div className="grid grid-cols-4 gap-5">
-            {privacyCards.map((card) => (
+          <SectionHeader label={t('settings.sections.privacy')} />
+          {/* Satır 1: Ebeveyn Kontrolü · Dili Değiştir · Önbelleği Temizle */}
+          <div className="grid grid-cols-3 gap-5">
+            {privacyRow1Cards.map((card) => (
+              <SettingsCard
+                key={card.id}
+                focusKey={`settings-card-${card.id}`}
+                icon={card.icon}
+                title={card.title}
+                subtitle={card.subtitle}
+                badge={card.badge}
+                onEnterPress={card.onPress}
+              />
+            ))}
+          </div>
+          {/* Satır 2: 3 kategori gizleme butonu */}
+          <div className="grid grid-cols-3 gap-5 mt-5">
+            {hideCategoryCards.map((card) => (
               <SettingsCard
                 key={card.id}
                 focusKey={`settings-card-${card.id}`}
@@ -725,8 +949,8 @@ export function SettingsScreen() {
 
         {/* ─── Geçmiş & Veri ───────────────────────────────────────────────── */}
         <div className="mt-10">
-          <SectionHeader label="Geçmiş & Veri" />
-          <div className="grid grid-cols-4 gap-5">
+          <SectionHeader label={t('settings.sections.history')} />
+          <div className="grid grid-cols-3 gap-5">
             {historyCards.map((card) => (
               <SettingsCard
                 key={card.id}
@@ -743,8 +967,8 @@ export function SettingsScreen() {
 
         {/* ─── Biçim & Oynatma ─────────────────────────────────────────────── */}
         <div className="mt-10">
-          <SectionHeader label="Biçim & Oynatma" />
-          <div className="grid grid-cols-4 gap-5">
+          <SectionHeader label={t('settings.sections.format')} />
+          <div className="grid grid-cols-2 gap-5">
             {formatCards.map((card) => (
               <SettingsCard
                 key={card.id}
@@ -759,11 +983,26 @@ export function SettingsScreen() {
           </div>
         </div>
 
+        {/* ─── Cloud Sync ───────────────────────────────────────────────────── */}
+        <div className="mt-10">
+          <SectionHeader label={t('settings.sections.cloud')} />
+          <div className="grid grid-cols-4 gap-5">
+            <SettingsCard
+              focusKey="settings-card-cloud-0"
+              icon={<IconCloud />}
+              title={t('settings.cloud_sync.title')}
+              subtitle={getSupabaseConfig() ? t('settings.cloud_sync.configured') : t('settings.cloud_sync.not_configured')}
+              badge={{ label: getSupabaseConfig() ? t('settings.badge.on') : t('settings.badge.off'), variant: getSupabaseConfig() ? 'on' : 'off' }}
+              onEnterPress={() => setModal('cloud-sync')}
+            />
+          </div>
+        </div>
+
         {/* ─── Footer: MAC + Cihaz Anahtarı ────────────────────────────────── */}
         <div className="mt-12 pt-6 border-t border-white/[0.06] flex items-center justify-center gap-16">
           <div className="flex items-baseline gap-3">
             <span className="text-[12px] uppercase tracking-[0.3em] text-white/45 font-semibold">
-              Mac Adresi
+              {t('settings.footer.mac')}
             </span>
             <span className="font-serif text-[19px] font-light tabular-nums text-[#E8B567] tracking-wide">
               {mac}
@@ -771,7 +1010,7 @@ export function SettingsScreen() {
           </div>
           <div className="flex items-baseline gap-3">
             <span className="text-[12px] uppercase tracking-[0.3em] text-white/45 font-semibold">
-              Cihaz Anahtarı
+              {t('settings.footer.device_key')}
             </span>
             <span className="font-serif text-[19px] font-light tabular-nums text-[#E8B567] tracking-wide">
               {deviceKey}
@@ -827,24 +1066,31 @@ export function SettingsScreen() {
 
       {modal === 'hide-categories' && (
         <HideCategoriesModal
+          onClose={() => { setModal(null); setTimeout(() => setFocus('settings-card-privacy-3'), 50); }}
+        />
+      )}
+
+      {modal === 'hide-vod-categories' && (
+        <HideVodCategoriesModal
+          onClose={() => { setModal(null); setTimeout(() => setFocus('settings-card-privacy-4'), 50); }}
+        />
+      )}
+
+      {modal === 'hide-series-categories' && (
+        <HideSeriesCategoriesModal
+          onClose={() => { setModal(null); setTimeout(() => setFocus('settings-card-privacy-5'), 50); }}
+        />
+      )}
+
+      {modal === 'language' && (
+        <LanguageModal
           onClose={() => { setModal(null); setTimeout(() => setFocus('settings-card-privacy-1'), 50); }}
         />
       )}
 
-      {modal === 'xtream-info' && (
-        <XtreamInfoModal
-          onClose={() => { setModal(null); setTimeout(() => setFocus('settings-card-privacy-2'), 50); }}
-        />
-      )}
-
-      {modal === 'clear-cache-confirm' && (
-        <ConfirmModal
-          title="Önbelleği Temizle"
-          message="EPG ve logo önbelleği temizlenecek. Kaynaklar, favoriler ve Ebeveyn Kontrolü etkilenmez."
-          confirmLabel="Temizle"
-          cancelLabel="İptal"
-          onConfirm={() => void handleClearCache()}
-          onCancel={() => { setModal(null); setTimeout(() => setFocus('settings-card-privacy-3'), 50); }}
+      {modal === 'cloud-sync' && (
+        <CloudSyncConfigModal
+          onClose={() => { setModal(null); setTimeout(() => setFocus('settings-card-cloud-0'), 50); }}
         />
       )}
     </FocusContext.Provider>

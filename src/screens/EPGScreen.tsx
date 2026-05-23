@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 import { EPGRow } from '@/components/epg/EPGRow';
 import { TimeAxis, PIXEL_PER_HOUR } from '@/components/epg/TimeAxis';
@@ -13,10 +14,11 @@ import { usePlaylistStore } from '@/state/playlistStore';
 import type { Channel } from '@/types/channel';
 
 function PointerHintBanner() {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-2 px-4 py-1.5 bg-bg-elevated border-b border-border-subtle text-tiny text-text-secondary shrink-0">
       <span>&#x1F5B1;</span>
-      <span>Bu ekranda Magic Remote pointer kullanın · D-pad henüz desteklenmiyor</span>
+      <span>{t('epg.pointer_hint')}</span>
     </div>
   );
 }
@@ -32,6 +34,7 @@ function buildTimeWindow(): { start: number; end: number } {
 }
 
 export function EPGScreen() {
+  const { t } = useTranslation();
   const isLoaded = useEpgStore((s) => s.isLoaded);
   const sources = useSourceStore((s) => s.sources).filter((s) => s.enabled);
   const navigate = useUIStore((s) => s.navigate);
@@ -128,7 +131,7 @@ export function EPGScreen() {
 
         {channels.length === 0 && (
           <div className="flex items-center justify-center h-32 text-text-secondary text-body">
-            Kanal listesi yükleniyor...
+            {t('epg.channels_loading')}
           </div>
         )}
       </div>

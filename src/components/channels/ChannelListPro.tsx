@@ -3,6 +3,7 @@ import { List } from 'react-window';
 import type { ListImperativeAPI } from 'react-window';
 import type { CSSProperties, ReactElement } from 'react';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 import { usePlaylistStore } from '@/state/playlistStore';
 import { useNowNext } from '@/state/epgStore';
 import { useChannelLogo } from '@/hooks/useChannelLogo';
@@ -120,6 +121,7 @@ export function ChannelListPro({
   onToggleFavorite,
   focusedChannelId,
 }: Props) {
+  const { t } = useTranslation();
   const channels = usePlaylistStore(s => s.visibleChannels);
   const activeCategory = usePlaylistStore(s => s.activeCategory);
   const listRef = useRef<ListImperativeAPI>(null);
@@ -130,10 +132,10 @@ export function ChannelListPro({
 
   // Human-readable category label for header
   const categoryLabel = activeCategory === '__favorites__'
-    ? 'Favoriler'
+    ? t('channel_list.favorites')
     : activeCategory === '__recent__'
-      ? 'Son İzlenen'
-      : activeCategory ?? 'Tümü';
+      ? t('channel_list.recent')
+      : activeCategory ?? t('channel_list.all');
 
   const isVirtualized = channels.length >= VIRTUALIZATION_THRESHOLD;
 
@@ -252,7 +254,7 @@ export function ChannelListPro({
         {categoryLabel}
       </span>
       <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-        {channels.length} Kanal
+        {t('channel_list.channel_count', { count: channels.length })}
       </span>
     </div>
   );
@@ -262,7 +264,7 @@ export function ChannelListPro({
       <div className="w-full h-full relative overflow-y-auto pr-1">
         {header}
         <div className="flex items-center justify-center text-white/40 py-12">
-          Bu kategoride kanal yok
+          {t('channel_list.empty')}
         </div>
       </div>
     );

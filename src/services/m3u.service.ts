@@ -1,5 +1,4 @@
 import M3UParserWorker from '@/workers/m3uParser.worker?worker';
-import { channelCache } from './channelCache';
 import type { Source, M3UConfig } from '@/types/source';
 import type { WorkerResponse } from '@/types/parser';
 import type { Channel } from '@/types/channel';
@@ -17,8 +16,9 @@ export type SyncResult = {
 };
 
 /**
- * M3U URL'ini Web Worker'da parse edip IDB'ye yazar.
- * Source'u DB'ye kaydetmez — çağıran taraf sorumlu.
+ * M3U URL'ini Web Worker'da parse eder ve kanalları döner.
+ * IDB yazımı yapılmaz — çağıran taraf resolve'dan sonra kendi stratejisiyle yazar.
+ * (addSource: await putChannels, syncSource: fire-and-forget)
  */
 export async function syncM3USource(
   source: Source,
@@ -26,12 +26,10 @@ export async function syncM3USource(
 ): Promise<SyncResult> {
   const config = source.config as M3UConfig;
 
-  await channelCache.clearSourceChannels(source.id);
-
   return new Promise((resolve, reject) => {
     const worker = new M3UParserWorker();
 
-    worker.onmessage = async (e: MessageEvent<WorkerResponse>) => {
+    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
       const msg = e.data;
 
       if (msg.type === 'progress') {
@@ -41,10 +39,9 @@ export async function syncM3USource(
           percent: Math.round((msg.parsed / msg.total) * 100),
         });
       } else if (msg.type === 'done') {
-        if (msg.channels) {
-          await channelCache.putChannels(msg.channels);
-        }
         worker.terminate();
+        // Parse tamamlandı — IDB yazmadan hemen resolve et.
+        // Caller, kendi stratejisine göre IDB'ye yazar.
         resolve({
           channelCount: msg.channelCount,
           categories: msg.categories,

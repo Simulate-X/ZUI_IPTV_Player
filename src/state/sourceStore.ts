@@ -63,6 +63,10 @@ export const useSourceStore = create<SourceStore>((set, get) => ({
         channels = result.channels;
         channelCount = result.channelCount;
         categoryOrder = result.categories.length > 0 ? result.categories : undefined;
+        // addSource: yeni kaynak için IDB yazımını bekle (ilk kurulum güvenilirliği).
+        if (channels.length > 0) {
+          await channelCache.putChannels(channels);
+        }
       } else if (input.type === 'xtream') {
         const result = await syncXtreamSource(sourceId, input.config as XtreamCredentials);
         channels = result.channels;
@@ -122,7 +126,32 @@ export const useSourceStore = create<SourceStore>((set, get) => ({
   },
 
   toggleSource: async (id, enabled) => {
-    await get().updateSource(id, { enabled });
+    // Optimistik güncelleme — önce UI'yı anında değiştir, sonra IDB'ye yaz.
+    set((state) => ({
+      sources: state.sources.map((s) => (s.id === id ? { ...s, enabled } : s)),
+    }));
+
+    if (enabled) {
+      // Kaynak aktif edildi → IDB'deki kanalları belleğe yükle (anında görünür).
+      channelCache.getAllChannelsForSource(id)
+        .then((channels) => {
+          if (channels.length > 0) {
+            usePlaylistStore.getState().setChannelsForSource(id, channels);
+          }
+        })
+        .catch((err) => console.error('[sourceStore] toggleSource channel load error:', err));
+    } else {
+      // Kaynak pasif edildi → kanalları bellekten kaldır (anında görünmez olur).
+      usePlaylistStore.getState().removeChannelsForSource(id);
+    }
+
+    // IDB kaynak kaydı arka planda
+    const updated = get().sources.find((s) => s.id === id);
+    if (updated) {
+      await channelCache.saveSource(updated).catch((err) =>
+        console.error('[sourceStore] toggleSource IDB hatası:', err)
+      );
+    }
   },
 
   syncSource: async (id, onProgress) => {
@@ -143,6 +172,11 @@ export const useSourceStore = create<SourceStore>((set, get) => ({
         channels = result.channels;
         channelCount = result.channelCount;
         categoryOrder = result.categories.length > 0 ? result.categories : undefined;
+        // Fire-and-forget IDB yazımı — UI parse bitince hemen güncellenir.
+        // clear → put zinciri atomic: eski kanallar silinmeden yenileri yazılmaz.
+        channelCache.clearSourceChannels(source.id)
+          .then(() => channelCache.putChannels(channels))
+          .catch((err) => console.error('[syncSource] m3u IDB write failed:', err));
       } else if (source.type === 'xtream') {
         const result = await syncXtreamSource(source.id, source.config as XtreamCredentials);
         channels = result.channels;
@@ -152,18 +186,24 @@ export const useSourceStore = create<SourceStore>((set, get) => ({
         if (result.bouquets.length > 0) {
           await get().updateSource(id, { bouquets: result.bouquets });
         }
-        await channelCache.clearSourceChannels(source.id);
-        await channelCache.putChannels(channels);
+        // Fire-and-forget IDB yazımı — UI anında güncellenir.
+        channelCache.clearSourceChannels(source.id)
+          .then(() => channelCache.putChannels(channels))
+          .catch((err) => console.error('[syncSource] xtream IDB write failed:', err));
       } else {
         return { ok: false, error: 'Bilinmeyen kaynak tipi' };
       }
 
+      // Source metadata'sını güncelle
       await get().updateSource(id, {
         syncedAt: Date.now(),
         channelCount,
         lastError: undefined,
         ...(categoryOrder !== undefined && { categoryOrder }),
       });
+
+      // Playliststore'u anında güncelle — IDB yazımı beklenmiyor.
+      usePlaylistStore.getState().setChannelsForSource(id, channels);
 
       // Playlist store'u güncel server-ordered kategori listesiyle güncelle
       if (categoryOrder) {

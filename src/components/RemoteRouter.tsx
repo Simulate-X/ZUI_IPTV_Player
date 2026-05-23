@@ -28,6 +28,8 @@ export function RemoteRouter() {
           case 'epg':
           case 'settings':
           case 'movies':
+          case 'series':
+          case 'playlists':
             // Alt sayfalardan BACK → Anasayfa
             navigate('home');
             break;

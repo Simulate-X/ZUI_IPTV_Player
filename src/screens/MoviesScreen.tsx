@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 import { useMoviesStore } from '@/state/moviesStore';
 import { MovieCategorySidebar } from '@/components/movies/MovieCategorySidebar';
 import { MoviesHero } from '@/components/movies/MoviesHero';
@@ -16,6 +17,7 @@ export function MoviesScreen() {
   const error = useMoviesStore(s => s.error);
   const loadVodData = useMoviesStore(s => s.loadVodData);
 
+  const { t } = useTranslation();
   const [focusedMovieId, setFocusedMovieId] = useState<string | null>(null);
 
   // Page-level focus context — declared BEFORE any conditional returns
@@ -26,11 +28,21 @@ export function MoviesScreen() {
     saveLastFocusedChild: true,
   });
 
-  // Load VOD data on mount if not already loaded
+  // Load VOD data on mount if not already loaded.
+  // Also retry if status is 'error' — covers the case where an Xtream source
+  // was passive on last visit and the user has since enabled it.
   useEffect(() => {
-    if (status === 'idle') {
+    if (status === 'idle' || status === 'error') {
       void loadVodData();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Clear search query when leaving the movies screen so it doesn't persist stale
+  useEffect(() => {
+    return () => {
+      useMoviesStore.getState().setCategorySearch('');
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -67,7 +79,7 @@ export function MoviesScreen() {
               <svg className="w-8 h-8 animate-spin text-[#E8B567]" viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" strokeDasharray="31.4" strokeDashoffset="10" />
               </svg>
-              <span className="font-serif italic text-[16px]">Filmler yükleniyor…</span>
+              <span className="font-serif italic text-[16px]">{t('movies.loading')}</span>
             </div>
           </div>
         )}
@@ -80,12 +92,12 @@ export function MoviesScreen() {
                 <circle cx="12" cy="12" r="10" />
                 <path d="M12 8v4M12 16h.01" strokeLinecap="round" />
               </svg>
-              <p className="font-serif italic text-[16px] text-white/60">{error ?? 'Film verisi yüklenemedi.'}</p>
+              <p className="font-serif italic text-[16px] text-white/60">{error ?? t('movies.error')}</p>
               <button
                 onClick={() => void loadVodData()}
                 className="mt-2 px-4 h-9 rounded-full border border-[#E8B567]/55 text-[#E8B567] text-[12px] uppercase tracking-[0.25em] font-semibold"
               >
-                Tekrar Dene
+                {t('common.retry')}
               </button>
             </div>
           </div>

@@ -3,21 +3,30 @@
 // Bottom bar: play/pause · rewind · fast-forward · seek bar · time (VOD only).
 
 import { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePlayerStore } from '@/state/playerStore';
+import { useSettingsStore, LANGUAGE_LOCALES } from '@/state/settingsStore';
 
 // ─── Clock ───────────────────────────────────────────────────────────────────
 
 function useClock() {
-  const [time, setTime] = useState(() =>
-    new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
-  );
+  const language   = useSettingsStore(s => s.language);
+  const timeFormat = useSettingsStore(s => s.timeFormat);
+  const locale     = LANGUAGE_LOCALES[language] ?? 'en-US';
+  const hour12     = timeFormat === '12h';
+
+  const fmt = () =>
+    new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12 });
+
+  const [time, setTime] = useState(fmt);
+
   useEffect(() => {
-    const id = setInterval(
-      () => setTime(new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })),
-      1000,
-    );
+    setTime(fmt());
+    const id = setInterval(() => setTime(fmt()), 1000);
     return () => clearInterval(id);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale, hour12]);
+
   return time;
 }
 
@@ -42,6 +51,7 @@ interface ControlsProps {
 }
 
 function BottomControls({ videoRef }: ControlsProps) {
+  const { t } = useTranslation();
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -136,7 +146,7 @@ function BottomControls({ videoRef }: ControlsProps) {
             )}
           </div>
           <span className="text-[9px] uppercase tracking-[0.2em] font-semibold text-white/60">
-            {paused ? 'Oynat' : 'Duraklat'}
+            {paused ? t('player.play') : t('player.pause')}
           </span>
         </button>
 
@@ -162,7 +172,7 @@ function BottomControls({ videoRef }: ControlsProps) {
         <div className="flex justify-center">
           <div className="flex items-center gap-2 px-3 h-7 rounded-full bg-red-500/20 border border-red-500/40">
             <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-red-300">Canlı</span>
+            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-red-300">{t('player.live')}</span>
           </div>
         </div>
       )}

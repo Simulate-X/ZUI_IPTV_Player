@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 import { VideoPlayer } from '@/components/player/VideoPlayer';
 import { Onboarding } from '@/screens/Onboarding';
@@ -7,6 +8,8 @@ import { EPGScreen } from '@/screens/EPGScreen';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { SettingsScreen } from '@/screens/SettingsScreen';
 import { MoviesScreen } from '@/screens/MoviesScreen';
+import { SeriesScreen } from '@/screens/SeriesScreen';
+import { PlaylistsScreen } from '@/screens/PlaylistsScreen';
 import { SplashScreen } from '@/components/SplashScreen';
 import { RemoteRouter } from '@/components/RemoteRouter';
 import { TopBar } from '@/components/layout/TopBar';
@@ -20,8 +23,31 @@ import { isEPGStale } from '@/services/epg.service';
 import { useParentalStore } from '@/state/parentalStore';
 import { useLogoCacheStore } from '@/state/logoCacheStore';
 import { Toast } from '@/components/ui/Toast';
+import { useToast } from '@/components/ui/Toast';
+import { useSupabaseRealtime } from '@/hooks/useSupabaseRealtime';
 
 const SIX_HOURS = 6 * 60 * 60 * 1000;
+
+// ─── Cloud Sync — App seviyesinde başlatılır ──────────────────────────────────
+// Cihaz uygulama açıldığı anda Supabase'e kaydolur ve realtime kanalını dinler.
+// Onboarding ekranına gelinmesine gerek yoktur.
+
+function useCloudSync() {
+  const { t } = useTranslation();
+  const showToast = useToast((s) => s.show);
+  const onSuccess = useCallback(() => {
+    showToast(t('app.cloud_list_added'));
+    // Filtre her zaman sıfırla — yeni liste gelince tüm kanallar görünsün.
+    usePlaylistStore.getState().setActiveSourceFilter('all');
+    // Kullanıcı Onboarding ekranındaysa kanalleri yükleyip Home'a geç.
+    if (useUIStore.getState().currentScreen === 'onboarding') {
+      usePlaylistStore.getState().loadAllFromDB()
+        .then(() => useUIStore.getState().navigate('home'))
+        .catch(console.error);
+    }
+  }, [showToast, t]);
+  useSupabaseRealtime(onSuccess);
+}
 
 function useInitApp() {
   const navigate = useUIStore((s) => s.navigate);
@@ -82,7 +108,9 @@ function useInitApp() {
 }
 
 export default function App() {
+  const { t } = useTranslation();
   useInitApp();
+  useCloudSync();
   const screen = useUIStore((s) => s.currentScreen);
   const modalOpen = useUIStore((s) => s.modalOpen);
   const closeModal = useUIStore((s) => s.closeModal);
@@ -144,6 +172,13 @@ export default function App() {
           return;
         }
 
+        // Series screen — focus back button (sidebar top)
+        if (currentScreen === 'series') {
+          console.warn('[App] No focused component after 1s — forcing SERIES_BACK_HOME');
+          setNavFocus('SERIES_BACK_HOME');
+          return;
+        }
+
         const s = usePlaylistStore.getState();
         const lastFocused = s.lastFocusedChannelId;
         if (lastFocused && s.visibleChannels.some((c) => c.id === lastFocused)) {
@@ -172,6 +207,8 @@ export default function App() {
       case 'epg':         return <EPGScreen />;
       case 'settings':    return <SettingsScreen />;
       case 'movies':      return <MoviesScreen />;
+      case 'series':      return <SeriesScreen />;
+      case 'playlists':   return <PlaylistsScreen />;
       case 'player':      return <VideoPlayer />;
       default:            return <SplashScreen />;
     }
@@ -191,10 +228,10 @@ export default function App() {
 
       {modalOpen === 'exit' && (
         <ConfirmModal
-          title="Uygulamadan çık"
-          message="ZUI IPTV Player'dan çıkmak istediğinize emin misiniz?"
-          confirmLabel="Evet, çık"
-          cancelLabel="İptal"
+          title={t('app.exit_title')}
+          message={t('app.exit_message')}
+          confirmLabel={t('app.exit_confirm')}
+          cancelLabel={t('app.exit_cancel')}
           onConfirm={() => window.close()}
           onCancel={handleCloseModal}
         />

@@ -4,6 +4,7 @@
 
 import { useRef } from 'react';
 import { useFocusable, FocusContext } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 import { useMoviesStore } from '@/state/moviesStore';
 import { useUIStore } from '@/state/uiStore';
 import { useFocusableScroll } from '@/hooks/useFocusableScroll';
@@ -12,6 +13,7 @@ import type { MovieCategory } from '@/types/movie';
 // ─── Back-to-home pill ──────────────────────────────────────────────────────
 
 function BackHomeButton() {
+  const { t }    = useTranslation();
   const navigate = useUIStore(s => s.navigate);
 
   const { ref, focused } = useFocusable({
@@ -23,7 +25,7 @@ function BackHomeButton() {
     <button
       ref={ref as React.RefObject<HTMLButtonElement>}
       onClick={() => navigate('home')}
-      aria-label="Anasayfaya dön"
+      aria-label={t('sidebar.home')}
       className={[
         'group flex items-center gap-3 w-full px-3 h-12 rounded-full transition-all shrink-0',
         focused
@@ -46,7 +48,7 @@ function BackHomeButton() {
         </svg>
       </span>
       <span className="font-serif italic text-[15px] font-light tracking-wide flex-1 text-left">
-        Anasayfa
+        {t('sidebar.home')}
       </span>
       <span
         className={[
@@ -63,7 +65,8 @@ function BackHomeButton() {
 // ─── Category search input ───────────────────────────────────────────────────
 
 function CategorySearch() {
-  const value = useMoviesStore(s => s.categorySearch);
+  const { t }    = useTranslation();
+  const value    = useMoviesStore(s => s.categorySearch);
   const setSearch = useMoviesStore(s => s.setCategorySearch);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -95,9 +98,20 @@ function CategorySearch() {
         type="text"
         value={value}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Kategori ara…"
+        placeholder={t('sidebar.search_movies')}
         className="flex-1 bg-transparent outline-none border-0 text-[14px] text-white placeholder:font-serif placeholder:italic placeholder:font-light placeholder:text-white/40 placeholder:tracking-wide"
       />
+      {value && (
+        <button
+          onClick={() => { setSearch(''); inputRef.current?.focus(); }}
+          className="shrink-0 w-5 h-5 rounded-full bg-white/15 hover:bg-white/25 grid place-items-center transition-colors"
+          aria-label="Aramayı temizle"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-3 h-3 text-white/70">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
@@ -170,9 +184,11 @@ function CategoryRow({
 // ─── Sidebar root ────────────────────────────────────────────────────────────
 
 export function MovieCategorySidebar() {
-  const categories = useMoviesStore(s => s.categories);
+  const { t }          = useTranslation();
+  const categories     = useMoviesStore(s => s.categories);
   const activeCategory = useMoviesStore(s => s.activeCategory);
-  const search = useMoviesStore(s => s.categorySearch);
+  const search         = useMoviesStore(s => s.categorySearch);
+  const hiddenCategoryIds = useMoviesStore(s => s.hiddenCategoryIds);
 
   // Client-side search filter
   const visible = search
@@ -181,9 +197,12 @@ export function MovieCategorySidebar() {
       )
     : categories;
 
-  // Specials are pinned at the top regardless of search
+  // Specials are pinned at the top regardless of search or hidden state
   const specials = visible.filter(c => c.id === '__resume__' || c.id === '__favorites__');
-  const regulars = visible.filter(c => c.id !== '__resume__' && c.id !== '__favorites__');
+  // Regular categories minus hidden ones
+  const regulars = visible.filter(c =>
+    c.id !== '__resume__' && c.id !== '__favorites__' && !hiddenCategoryIds.includes(c.id)
+  );
 
   const { ref, focusKey } = useFocusable({
     focusKey: 'MOVIES_SIDEBAR',
@@ -204,7 +223,7 @@ export function MovieCategorySidebar() {
           {specials.length > 0 && (
             <>
               <div className="px-2 pt-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.35em] text-white/35">
-                Kütüphane
+                {t('sidebar.library')}
               </div>
               {specials.map(c => (
                 <CategoryRow key={c.id} category={c} isActive={c.id === activeCategory} />
@@ -214,7 +233,7 @@ export function MovieCategorySidebar() {
           )}
 
           <div className="px-2 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-[0.35em] text-white/35">
-            Kategoriler · {regulars.length}
+            {t('sidebar.categories')} · {regulars.length}
           </div>
           {regulars.map(c => (
             <CategoryRow key={c.id} category={c} isActive={c.id === activeCategory} />
@@ -222,7 +241,7 @@ export function MovieCategorySidebar() {
 
           {visible.length === 0 && (
             <div className="px-3 py-6 text-center text-white/40 font-serif italic text-[14px]">
-              Arama ile eşleşen kategori yok
+              {t('sidebar.no_results')}
             </div>
           )}
         </div>

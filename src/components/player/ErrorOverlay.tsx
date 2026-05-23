@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 import type { PlaybackAttempt } from '@/types/player';
 
 // Re-export so any code that imported from here keeps working
@@ -16,6 +17,7 @@ type Props = {
  * BACK tuşu RemoteRouter tarafından lastMainScreen'e yönlendirilir — burada ayrıca listener yok.
  */
 function GeriButton({ onBack }: { onBack: () => void }) {
+  const { t } = useTranslation();
   const { ref, focused, setFocus } = useFocusable({
     focusKey: 'error-overlay-back',
     onEnterPress: onBack,
@@ -39,12 +41,13 @@ function GeriButton({ onBack }: { onBack: () => void }) {
         focused ? 'outline outline-3 outline-white outline-offset-2' : '',
       ].join(' ')}
     >
-      ← Geri
+      {t('player.back')}
     </button>
   );
 }
 
 export function ErrorOverlay({ message, attempts, onBack }: Props) {
+  const { t } = useTranslation();
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   // NOT: window keydown listener YOK.
@@ -58,7 +61,7 @@ export function ErrorOverlay({ message, attempts, onBack }: Props) {
         {/* Başlık */}
         <div className="flex items-center gap-3 text-live">
           <span className="text-display font-bold leading-none">!</span>
-          <h2 className="text-h2 font-semibold">Oynatma Başarısız</h2>
+          <h2 className="text-h2 font-semibold">{t('player.error_title')}</h2>
         </div>
 
         {/* Ana hata mesajı */}
@@ -71,7 +74,7 @@ export function ErrorOverlay({ message, attempts, onBack }: Props) {
               className="w-full flex items-center justify-between px-4 py-3 bg-bg-elevated text-small text-text-secondary hover:bg-bg-surface transition-colors"
               onClick={() => setDetailsOpen((v) => !v)}
             >
-              <span>Denenen kombinasyonlar ({attempts.length})</span>
+              <span>{t('player.tried_combinations', { count: attempts.length })}</span>
               <span className="ml-2">{detailsOpen ? '▲' : '▼'}</span>
             </button>
             {detailsOpen && (
@@ -92,11 +95,11 @@ export function ErrorOverlay({ message, attempts, onBack }: Props) {
 
         {/* Olası sebepler */}
         <div className="text-small text-text-tertiary border-t border-border-subtle pt-4">
-          <p className="mb-2">Olası sebepler:</p>
+          <p className="mb-2">{t('player.possible_reasons')}</p>
           <ul className="list-disc list-inside space-y-1">
-            <li>Provider stream'i geçici olarak kapalı</li>
-            <li>Ağ erişim engeli (geo-block, firewall)</li>
-            <li>Provider'ın URL formatı bu TV tarafından desteklenmiyor</li>
+            <li>{t('player.reason_stream_closed')}</li>
+            <li>{t('player.reason_network')}</li>
+            <li>{t('player.reason_format')}</li>
           </ul>
         </div>
 

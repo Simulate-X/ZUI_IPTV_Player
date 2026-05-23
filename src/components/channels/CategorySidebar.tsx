@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { FocusContext, useFocusable } from '@noriginmedia/norigin-spatial-navigation';
+import { useTranslation } from 'react-i18next';
 import { usePlaylistStore } from '@/state/playlistStore';
 import { useSourceStore } from '@/state/sourceStore';
 import { useParentalStore } from '@/state/parentalStore';
@@ -161,6 +162,7 @@ function SidebarItem({
 // ─── Home Back Button ─────────────────────────────────────────────────────────
 
 function HomeBackButton() {
+  const { t } = useTranslation();
   const navigate = useUIStore((s) => s.navigate);
   const { ref, focused } = useFocusable({
     focusKey: 'sidebar-home-btn',
@@ -177,7 +179,7 @@ function HomeBackButton() {
   return (
     <button
       ref={ref as React.RefObject<HTMLButtonElement>}
-      aria-label="Anasayfaya dön"
+      aria-label={t('channel_list.home')}
       onClick={() => navigate('home')}
       className={[
         'group flex items-center gap-3 w-full px-3 h-12 mb-3 rounded-full border transition-all',
@@ -196,7 +198,7 @@ function HomeBackButton() {
         </svg>
       </span>
       <span className="font-serif italic text-[15px] font-light tracking-wide flex-1 text-left">
-        Anasayfa
+        {t('channel_list.home')}
       </span>
       <span className={[
         'text-[10px] uppercase tracking-[0.3em] font-semibold',
@@ -209,6 +211,7 @@ function HomeBackButton() {
 }
 
 export function CategorySidebar() {
+  const { t } = useTranslation();
   const allCategories = usePlaylistStore((s) => s.categories);
   const hiddenCategories = usePlaylistStore((s) => s.hiddenCategories);
   const categories = allCategories.filter((c) => !hiddenCategories.has(c.name));
@@ -300,7 +303,7 @@ export function CategorySidebar() {
 
         <SidebarItem
           focusKey="sidebar-all"
-          label="Tümü"
+          label={t('channel_list.all')}
           count={allCount}
           isActive={activeCategory === null && activeSourceFilter === 'all'}
           prevKey={prev('sidebar-all')}
@@ -319,7 +322,7 @@ export function CategorySidebar() {
         {favoriteIds.length > 0 && (
           <SidebarItem
             focusKey="sidebar-favorites"
-            label="Favoriler"
+            label={t('channel_list.favorites')}
             count={favoriteIds.length}
             icon={
               <svg className="w-4 h-4 text-yellow-500 fill-current" viewBox="0 0 24 24">
@@ -338,7 +341,7 @@ export function CategorySidebar() {
         {recentIds.length > 0 && (
           <SidebarItem
             focusKey="sidebar-recent"
-            label="Son İzlenen"
+            label={t('channel_list.recent')}
             count={recentIds.length}
             isActive={activeCategory === '__recent__'}
             prevKey={prev('sidebar-recent')}
@@ -373,11 +376,11 @@ export function CategorySidebar() {
           <>
             <div className="my-4 mx-2 border-t border-border-subtle" />
             <div className="px-2 pt-4 pb-3 text-[10px] font-semibold uppercase tracking-[0.35em] text-white/35">
-              Kaynak
+              {t('channel_list.source')}
             </div>
             <SidebarItem
               focusKey="sidebar-source-all"
-              label="Tümü"
+              label={t('channel_list.all')}
               count={0}
               isActive={activeSourceFilter === 'all'}
               prevKey={prev('sidebar-source-all')}

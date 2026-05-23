@@ -61,6 +61,59 @@ export type XtreamStream = {
   bouquet_ids?: number[];
 };
 
+// ─── Series (TV Show) types ─────────────────────────────────────────────────
+
+/** One series entry from the `get_series` list endpoint. */
+export type XtreamSeriesStream = {
+  num?: number;
+  series_id: number;
+  name: string;
+  cover: string;              // poster URL
+  plot?: string;
+  cast?: string;
+  director?: string;
+  genre?: string;
+  releaseDate?: string;       // "YYYY" or "YYYY-MM-DD"
+  last_modified?: string;     // unix timestamp string
+  rating: string;             // "7.5" — needs parseFloat
+  rating_5based?: number;
+  backdrop_path?: string[] | string;
+  youtube_trailer?: string;
+  episode_run_time?: string;  // episode duration in minutes
+  category_id?: string;
+};
+
+/** One episode entry from the `get_series_info` episodes map. */
+export type XtreamSeriesEpisode = {
+  id: string;                 // stream ID used to build playback URL
+  episode_num: number;
+  title: string;
+  container_extension: string;
+  added?: string;
+  info?: {
+    plot?: string;
+    duration_secs?: number;
+    duration?: string;
+    movie_image?: string;
+  };
+};
+
+/** Full response from `get_series_info?series_id=X`. */
+export type XtreamSeriesInfoResponse = {
+  info: XtreamSeriesStream & {
+    category_id?: string;
+    episode_run_time?: string;
+  };
+  seasons: Record<string, {
+    season_number: number;
+    name?: string;
+    cover?: string;
+    episode_count?: number;
+    air_date?: string;
+  }>;
+  episodes: Record<string, XtreamSeriesEpisode[]>;
+};
+
 // ─── VOD (Movie) types ──────────────────────────────────────────────────────
 
 export type XtreamVodStream = {
